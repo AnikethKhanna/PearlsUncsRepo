@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Alert, Card, buttonPrimary } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { getGoogleOAuthConfig, isDevSignInEnabled } from "@/lib/config";
+import { configProblems, devSignInBlocker, getGoogleOAuthConfig } from "@/lib/config";
 import { DevSignInForm } from "./dev-sign-in-form";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -14,10 +14,13 @@ const ERRORS: Record<string, string> = {
 };
 
 export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
-  if (await getCurrentUser()) redirect("/projects");
+  const isLocalDev = process.env.NODE_ENV === "development";
+  const problems = configProblems();
+  if (problems.length === 0 && (await getCurrentUser())) redirect("/projects");
   const { error } = await searchParams;
   const googleEnabled = !!getGoogleOAuthConfig();
-  const devEnabled = isDevSignInEnabled();
+  const devBlocker = devSignInBlocker();
+  const devEnabled = problems.length === 0 && devBlocker === null;
 
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
@@ -33,11 +36,44 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
             </a>
           )}
           {devEnabled && <DevSignInForm />}
-          {!googleEnabled && !devEnabled && (
-            <Alert tone="warning">No sign-in method is configured. See the README for GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.</Alert>
+          {problems.length > 0 && (
+            <Alert tone="error">
+              <p className="font-semibold">The app isn&apos;t configured yet: {problems.join("; ")}.</p>
+              {isLocalDev && <SetupHelp />}
+            </Alert>
+          )}
+          {problems.length === 0 && !googleEnabled && !devEnabled && (
+            <Alert tone="warning">
+              <p className="font-semibold">No sign-in method is configured.</p>
+              {isLocalDev ? (
+                <>
+                  <p className="mt-1">Development sign-in is off because {devBlocker}.</p>
+                  <SetupHelp />
+                </>
+              ) : (
+                <p className="mt-1">Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see the README).</p>
+              )}
+            </Alert>
           )}
         </div>
       </Card>
     </main>
+  );
+}
+
+/** Local setup checklist (only shown by `npm run dev`). Contains no secret values. */
+function SetupHelp() {
+  return (
+    <ul className="mt-2 list-disc space-y-1 pl-4">
+      <li>
+        In <code>.env.local</code> (project root, next to <code>package.json</code>), make sure it has{" "}
+        <code>DATA_BACKEND=memory</code>, <code>ALLOW_DEV_SIGN_IN=true</code> and a <code>SESSION_SECRET</code> of 32+
+        characters — and no other <code>ALLOW_DEV_SIGN_IN=false</code> line.
+      </li>
+      <li>On Windows, check the file isn&apos;t secretly named <code>.env.local.txt</code>.</li>
+      <li>
+        Stop the dev server (Ctrl+C) and run <code>npm run dev</code> again — env files are only read at startup.
+      </li>
+    </ul>
   );
 }

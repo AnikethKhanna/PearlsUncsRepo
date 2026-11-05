@@ -49,9 +49,31 @@ export function getSessionSecret(): string {
   return secret;
 }
 
+/**
+ * Why email-only dev sign-in is off, in plain words, or null if it is on.
+ * Accepts true / TRUE / 1 / yes so a capitalization slip doesn't lock people out.
+ */
+export function devSignInBlocker(): string | null {
+  if (isProductionDeployment()) return "it is never allowed in production (VERCEL_ENV or APP_ENV is set to production)";
+  const value = read("ALLOW_DEV_SIGN_IN");
+  if (value === undefined) return "ALLOW_DEV_SIGN_IN is not set";
+  if (!["true", "1", "yes"].includes(value.toLowerCase().replace(/^["']|["']$/g, "")))
+    return `ALLOW_DEV_SIGN_IN is set to "${value}" instead of true`;
+  return null;
+}
+
 /** Email-only sign-in for local development and demos. Never allowed in production. */
 export function isDevSignInEnabled(): boolean {
-  return read("ALLOW_DEV_SIGN_IN") === "true" && !isProductionDeployment();
+  return devSignInBlocker() === null;
+}
+
+/** Problems that stop the app from working at all, for a friendly message instead of a crash. */
+export function configProblems(): string[] {
+  const problems: string[] = [];
+  const secret = read("SESSION_SECRET");
+  if (!secret) problems.push("SESSION_SECRET is not set");
+  else if (secret.length < 32) problems.push("SESSION_SECRET is shorter than 32 characters");
+  return problems;
 }
 
 export function getGoogleOAuthConfig():
