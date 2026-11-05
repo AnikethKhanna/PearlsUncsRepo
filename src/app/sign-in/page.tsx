@@ -3,7 +3,14 @@ import { redirect } from "next/navigation";
 import { Alert, Card, buttonPrimary } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { configProblems, devSignInBlocker, getGoogleOAuthConfig } from "@/lib/config";
-import { DevSignInForm } from "./dev-sign-in-form";
+import { getStore } from "@/lib/data";
+import { DevSignInForm, type SampleAccount } from "./dev-sign-in-form";
+
+const SAMPLE_DESCRIPTIONS: Record<string, string> = {
+  Admin: "Sees everything; can create projects",
+  Staff: "Sees only projects they're assigned to",
+  Partner: "External partner; no access yet (pending sponsor decision)",
+};
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -22,6 +29,15 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   const devBlocker = devSignInBlocker();
   const devEnabled = problems.length === 0 && devBlocker === null;
 
+  // One-click buttons, ONLY for the placeholder's made-up accounts. Real Airtable
+  // users are never listed on this public page.
+  let sampleAccounts: SampleAccount[] = [];
+  if (devEnabled && getStore().kind === "memory") {
+    sampleAccounts = (await getStore().listUsers())
+      .filter((u) => u.active)
+      .map((u) => ({ email: u.email, name: u.name, accessLevel: u.accessLevel, description: SAMPLE_DESCRIPTIONS[u.accessLevel] ?? "" }));
+  }
+
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
       <Card className="w-full max-w-sm p-8">
@@ -35,7 +51,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
               Sign in with Google
             </a>
           )}
-          {devEnabled && <DevSignInForm />}
+          {devEnabled && <DevSignInForm sampleAccounts={sampleAccounts} />}
           {problems.length > 0 && (
             <Alert tone="error">
               <p className="font-semibold">The app isn&apos;t configured yet: {problems.join("; ")}.</p>
