@@ -35,7 +35,16 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   if (devEnabled && getStore().kind === "memory") {
     sampleAccounts = (await getStore().listUsers())
       .filter((u) => u.active)
-      .map((u) => ({ email: u.email, name: u.name, accessLevel: u.accessLevel, description: SAMPLE_DESCRIPTIONS[u.accessLevel] ?? "" }));
+      .sort(
+        (a, b) =>
+          ["Admin", "Staff", "Partner"].indexOf(a.accessLevel) - ["Admin", "Staff", "Partner"].indexOf(b.accessLevel),
+      )
+      .map((u) => ({
+        email: u.email,
+        name: u.name,
+        accessLevel: u.accessLevel,
+        description: [u.jobTitle, SAMPLE_DESCRIPTIONS[u.accessLevel]].filter(Boolean).join(" — "),
+      }));
   }
 
   return (
@@ -86,7 +95,9 @@ function SetupHelp() {
         <code>DATA_BACKEND=memory</code>, <code>ALLOW_DEV_SIGN_IN=true</code> and a <code>SESSION_SECRET</code> of 32+
         characters — and no other <code>ALLOW_DEV_SIGN_IN=false</code> line.
       </li>
-      <li>On Windows, check the file isn&apos;t secretly named <code>.env.local.txt</code>.</li>
+      <li>
+        On Windows, check the file isn&apos;t secretly named <code>.env.local.txt</code>.
+      </li>
       <li>
         Stop the dev server (Ctrl+C) and run <code>npm run dev</code> again — env files are only read at startup.
       </li>

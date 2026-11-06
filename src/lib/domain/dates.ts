@@ -69,6 +69,8 @@ export function calculateDueDate(rule: ScheduleRule, startDate: string, endDate:
 
 /** Human-readable description of a rule, e.g. "4 months before program start". */
 export function describeRule(rule: ScheduleRule): string {
+  if (rule.anchor === "Program Start" && rule.offsetUnit === "Days" && (rule.timing === "After" || rule.offsetAmount === 0))
+    return `Program day ${Math.abs(rule.offsetAmount) + 1}`;
   if (rule.offsetAmount === 0) return `On ${rule.anchor.toLowerCase()} date`;
   const unit = rule.offsetUnit.toLowerCase();
   const n = Math.abs(rule.offsetAmount);

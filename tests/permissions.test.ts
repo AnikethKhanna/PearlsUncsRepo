@@ -3,7 +3,7 @@ import { can, canUpdateTaskIn, canViewProject } from "@/lib/auth/permissions";
 import type { User } from "@/lib/domain/types";
 
 const user = (over: Partial<User>): User => ({
-  id: "u1", name: "", email: "", accessLevel: "Staff", active: true, projectIds: [], assignedTaskIds: [], ...over,
+  id: "u1", name: "", email: "", accessLevel: "Staff", jobTitle: "", active: true, projectIds: [], assignedTaskIds: [], ...over,
 });
 const project = { teamUserIds: ["u2"], taskIds: ["t1", "t2"] };
 

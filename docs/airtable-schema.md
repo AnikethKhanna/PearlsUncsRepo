@@ -37,6 +37,7 @@ other side's link field is added. Check their auto-generated names and update
 | Name (primary) | Single line text | |
 | Email | Email | Must match the person's Google account |
 | Access Level | Single select: `Admin`, `Staff`, `Partner` | Permission level, independent of job title |
+| Job Title | Single line text | e.g. "Program Manager". Pre-fills role assignments; not a permission |
 | Active | Checkbox | Unchecked = cannot sign in |
 | Assigned Tasks | Link → Tasks *(inverse of Tasks.Assignees)* | |
 | Projects | Link → Projects *(inverse of Projects.Team)* | |
@@ -78,7 +79,7 @@ every program" is modeled. A third profile is just another template.
 | Offset Unit | Single select: `Days`, `Weeks`, `Months` | Weeks |
 | Timing | Single select: `Before`, `After` | Before |
 | Anchor | Single select: `Program Start`, `Program End` | Program Start |
-| Default Owner Role | Single line text / single select | "Operations" |
+| Default Owner Role | Multiple select (or comma-separated text) | "Program Manager, Executive Director" |
 | Depends On | Link → Template Steps | "Confirm shipping address", "Confirm participant quantities" |
 
 ### Projects
@@ -115,6 +116,22 @@ every program" is modeled. A third profile is just another template.
 
 "Blocked" and "Overdue" are **computed** by the app and never stored, so they
 can't drift out of date.
+
+## Importing NMU's task spreadsheet
+
+`npm run sample:import` reads `data/sample-template-program-tasks.csv`
+(columns: Timeline, Task, Owner, Role) and understands timeline labels like
+"4 months prior", "Program day 3" and "2 weeks post" (see
+`src/lib/domain/timeline.ts`). It fails if any label isn't understood, so no
+row is silently dropped. It writes:
+
+- `src/lib/data/sample-template-tasks.ts`: used by the development placeholder.
+- `data/airtable-import/template-steps.csv`: ready to import into the
+  Airtable **Template Steps** table later. Link each row to its template
+  after importing.
+
+"Program day N" is treated as N−1 calendar days after the start date. If NMU's
+program days skip weekends, this needs adjusting.
 
 ## Design decisions
 

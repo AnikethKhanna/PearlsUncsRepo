@@ -229,6 +229,7 @@ function toUser(r: AirtableRecord): User {
     email: str(r, f.email).trim().toLowerCase(),
     // Unknown / blank access level is treated as the least-privileged level
     accessLevel: oneOf<AccessLevel>(str(r, f.accessLevel), ACCESS_LEVELS, "Partner"),
+    jobTitle: str(r, f.jobTitle),
     active: bool(r, f.active),
     projectIds: links(r, f.projects),
     assignedTaskIds: links(r, f.assignedTasks),
@@ -259,7 +260,10 @@ function toStep(r: AirtableRecord): TemplateStep {
     offsetUnit: oneOf(str(r, f.offsetUnit), OFFSET_UNITS, "Days"),
     timing: oneOf(str(r, f.timing), ["Before", "After"] as const, "Before"),
     anchor: oneOf(str(r, f.anchor), ["Program Start", "Program End"] as const, "Program Start"),
-    defaultOwnerRole: str(r, f.defaultOwnerRole),
+    defaultOwnerRoles: str(r, f.defaultOwnerRoles)
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean),
     dependsOnStepIds: links(r, f.dependsOn),
   };
 }

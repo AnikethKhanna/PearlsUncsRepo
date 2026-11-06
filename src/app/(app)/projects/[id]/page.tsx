@@ -27,11 +27,21 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   const now = today();
   const progress = projectProgress(tasks, now);
   const editable = canUpdateTaskIn(user, project);
-  const sorted = [...tasks].sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.order - b.order);
+  const sorted = [...tasks].sort(
+    (a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.order - b.order,
+  );
+  const PHASE_ORDER = ["Pre-launch", "During program", "Post-program"];
+  const phases = [...new Set(sorted.map((t) => t.phase || "Other"))].sort(
+    (a, b) => (PHASE_ORDER.indexOf(a) + 1 || 99) - (PHASE_ORDER.indexOf(b) + 1 || 99),
+  );
 
   return (
     <>
-      <nav className="mb-4 text-sm"><Link href="/projects" className="text-brand-700 hover:underline">← All projects</Link></nav>
+      <nav className="mb-4 text-sm">
+        <Link href="/projects" className="text-brand-700 hover:underline">
+          ← All projects
+        </Link>
+      </nav>
       <PageHeader
         title={project.name}
         description={
@@ -46,13 +56,17 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
       <div className="space-y-4">
         {created === "1" && <Alert tone="success">Project created with {tasks.length} tasks.</Alert>}
         {project.status === "Setting Up" && (
-          <Alert tone="warning">This project didn&apos;t finish setting up. Some tasks may be missing — check against the template.</Alert>
+          <Alert tone="warning">
+            This project didn&apos;t finish setting up. Some tasks may be missing — check against the template.
+          </Alert>
         )}
 
         <Card className="p-5">
           <div className="flex items-center gap-4">
             <ProgressBar percent={progress.percent} label="Project progress" />
-            <span className="whitespace-nowrap text-sm text-slate-700">{progress.complete} of {progress.total} tasks complete</span>
+            <span className="whitespace-nowrap text-sm text-slate-700">
+              {progress.complete} of {progress.total} tasks complete
+            </span>
           </div>
           <div className="mt-3 flex gap-2">
             {progress.overdue > 0 && <Badge tone="red">{progress.overdue} overdue</Badge>}
@@ -65,36 +79,59 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           {sorted.length === 0 ? (
             <p className="p-5 text-sm text-slate-600">No tasks.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
-              {sorted.map((t) => {
-                const blockers = openPrerequisites(t, byId);
-                const overdue = isOverdue(t, now);
-                const owners = t.assigneeIds.map((uid) => userNames.get(uid)).filter(Boolean);
-                return (
-                  <li key={t.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between" data-testid="task-row">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`font-medium ${isComplete(t) ? "text-slate-500" : "text-slate-900"}`}>{t.title}</span>
-                        {overdue && <Badge tone="red">Overdue</Badge>}
-                        {blockers.length > 0 && !isComplete(t) && <Badge tone="amber">Blocked</Badge>}
-                      </div>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Due {formatDisplayDate(t.dueDate)} · {owners.length ? owners.join(", ") : <span className="italic">Unassigned</span>}
-                        {t.ownerRole && <span className="text-slate-500"> ({t.ownerRole})</span>}
-                      </p>
-                      {blockers.length > 0 && !isComplete(t) && (
-                        <p className="mt-1 text-sm text-amber-800">Waiting on: {blockers.map((b) => b.title).join("; ")}</p>
-                      )}
-                    </div>
-                    {editable ? (
-                      <TaskStatusForm taskId={t.id} status={t.status} taskTitle={t.title} />
-                    ) : (
-                      <TaskStatusBadge status={t.status} />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            phases.map((phase) => {
+              const phaseTasks = sorted.filter((t) => (t.phase || "Other") === phase);
+              const done = phaseTasks.filter(isComplete).length;
+              return (
+                <section key={phase} aria-label={phase}>
+                  <h3 className="flex justify-between border-b border-slate-200 bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    <span>{phase}</span>
+                    <span className="normal-case tracking-normal">
+                      {done} of {phaseTasks.length} complete
+                    </span>
+                  </h3>
+                  <ul className="divide-y divide-slate-100">
+                    {phaseTasks.map((t) => {
+                      const blockers = openPrerequisites(t, byId);
+                      const overdue = isOverdue(t, now);
+                      const owners = t.assigneeIds.map((uid) => userNames.get(uid)).filter(Boolean);
+                      return (
+                        <li
+                          key={t.id}
+                          className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
+                          data-testid="task-row"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`font-medium ${isComplete(t) ? "text-slate-500" : "text-slate-900"}`}>
+                                {t.title}
+                              </span>
+                              {overdue && <Badge tone="red">Overdue</Badge>}
+                              {blockers.length > 0 && !isComplete(t) && <Badge tone="amber">Blocked</Badge>}
+                            </div>
+                            <p className="mt-1 text-sm text-slate-600">
+                              Due {formatDisplayDate(t.dueDate)} ·{" "}
+                              {owners.length ? owners.join(", ") : <span className="italic">Unassigned</span>}
+                              {t.ownerRole && <span className="text-slate-500"> ({t.ownerRole})</span>}
+                            </p>
+                            {blockers.length > 0 && !isComplete(t) && (
+                              <p className="mt-1 text-sm text-amber-800">
+                                Waiting on: {blockers.map((b) => b.title).join("; ")}
+                              </p>
+                            )}
+                          </div>
+                          {editable ? (
+                            <TaskStatusForm taskId={t.id} status={t.status} taskTitle={t.title} />
+                          ) : (
+                            <TaskStatusBadge status={t.status} />
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              );
+            })
           )}
         </Card>
       </div>

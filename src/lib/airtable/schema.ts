@@ -21,6 +21,8 @@ export const AIRTABLE_SCHEMA = {
       email: "Email",
       /** Single select: Admin | Staff | Partner */
       accessLevel: "Access Level",
+      /** Single line text / single select, e.g. "Program Manager". Pre-fills role assignments. */
+      jobTitle: "Job Title",
       /** Checkbox. Unchecked users cannot sign in. */
       active: "Active",
       /** Inverse of tasks.assignees (Airtable creates it automatically; check its name) */
@@ -72,8 +74,8 @@ export const AIRTABLE_SCHEMA = {
       timing: "Timing",
       /** Single select: Program Start | Program End */
       anchor: "Anchor",
-      /** Single line text / single select, e.g. "Program Manager" */
-      defaultOwnerRole: "Default Owner Role",
+      /** Multiple select (or comma-separated text), e.g. "Program Manager, Executive Director" */
+      defaultOwnerRoles: "Default Owner Role",
       /** Link to other Template Steps (prerequisites) */
       dependsOn: "Depends On",
     },

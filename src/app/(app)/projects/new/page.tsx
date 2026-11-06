@@ -21,7 +21,7 @@ export default async function NewProjectPage() {
   // Only pass the browser what the form needs (no emails, no record internals).
   const staff = users
     .filter((u) => u.active && u.accessLevel !== "Partner")
-    .map((u) => ({ id: u.id, name: u.name }));
+    .map((u) => ({ id: u.id, name: u.name, jobTitle: u.jobTitle }));
 
   return (
     <>

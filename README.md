@@ -46,8 +46,18 @@ npm run airtable:inspect
 **Option B, no credentials yet.** Set `DATA_BACKEND=memory`,
 `ALLOW_DEV_SIGN_IN=true` and a `SESSION_SECRET` in `.env.local`. This uses a
 **development placeholder** with illustrative sample data, which is lost on
-restart. A yellow banner shows while it's active. Sign in as
-`admin@example.org` or `staff@example.org`.
+restart. A yellow banner shows while it's active. The sign-in page lists
+one-click sample accounts (people from the sample task spreadsheet).
+The **Collegiate Swim Safely Series** template is the spreadsheet's 141 tasks.
+The YMCA template is a small illustrative example that shows task
+dependencies.
+
+To update the sample template after editing
+`data/sample-template-program-tasks.csv`, run:
+
+```bash
+npm run sample:import
+```
 
 Then start the dev server:
 

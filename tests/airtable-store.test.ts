@@ -13,7 +13,24 @@ import { FakeAirtable } from "./fake-airtable";
 
 let fake: FakeAirtable;
 let store: AirtableStore;
-let ids: { admin: string; staff: string; site: string; template: string };
+let ids: { admin: string; staff: string; site: string; template: string; big: string };
+
+/** Copy a sample template into the fake base (steps first, then their dependency links). */
+function seedTemplate(tpl: (typeof SAMPLE_TEMPLATES)[number]): string {
+  const F = S.steps.fields;
+  const template = fake.seed(S.templates.table, { [S.templates.fields.name]: tpl.name, [S.templates.fields.active]: true });
+  const stepIdMap = new Map<string, string>();
+  for (const s of tpl.steps) {
+    stepIdMap.set(s.id, fake.seed(S.steps.table, {
+      [F.title]: s.title, [F.template]: [template], [F.order]: s.order, [F.phase]: s.phase,
+      [F.offsetAmount]: s.offsetAmount, [F.offsetUnit]: s.offsetUnit, [F.timing]: s.timing, [F.anchor]: s.anchor,
+      // Airtable returns a multiple-select as an array of names
+      [F.defaultOwnerRoles]: s.defaultOwnerRoles,
+    }));
+  }
+  for (const s of tpl.steps) fake.get(S.steps.table, stepIdMap.get(s.id)!)!.fields[F.dependsOn] = s.dependsOnStepIds.map((d) => stepIdMap.get(d)!);
+  return template;
+}
 
 beforeEach(() => {
   fake = new FakeAirtable([
@@ -27,22 +44,11 @@ beforeEach(() => {
   const staff = fake.seed(S.users.table, { [U.name]: "Sam Staff", [U.email]: "staff@example.org", [U.accessLevel]: "Staff", [U.active]: true });
   const site = fake.seed(S.sites.table, { [S.sites.fields.name]: "Sample University Pool" });
 
-  // Copy the sample collegiate template into the fake base (steps first without deps, then deps)
-  const tpl = SAMPLE_TEMPLATES[0];
-  const template = fake.seed(S.templates.table, { [S.templates.fields.name]: tpl.name, [S.templates.fields.active]: true });
-  const F = S.steps.fields;
-  const stepIdMap = new Map<string, string>();
-  for (const s of tpl.steps) {
-    stepIdMap.set(s.id, fake.seed(S.steps.table, {
-      [F.title]: s.title, [F.template]: [template], [F.order]: s.order, [F.phase]: s.phase,
-      [F.offsetAmount]: s.offsetAmount, [F.offsetUnit]: s.offsetUnit, [F.timing]: s.timing, [F.anchor]: s.anchor,
-      [F.defaultOwnerRole]: s.defaultOwnerRole,
-    }));
-  }
-  for (const s of tpl.steps) fake.get(S.steps.table, stepIdMap.get(s.id)!)!.fields[F.dependsOn] = s.dependsOnStepIds.map((d) => stepIdMap.get(d)!);
+  const template = seedTemplate(SAMPLE_TEMPLATES.find((t) => t.id === "tplYmca")!);
+  const big = seedTemplate(SAMPLE_TEMPLATES.find((t) => t.id === "tplCollegiate")!);
 
   store = new AirtableStore(new AirtableClient({ token: "test-token", baseId: "appTEST", fetch: fake.fetch, minIntervalMs: 0, retryDelaysMs: [] }));
-  ids = { admin, staff, site, template };
+  ids = { admin, staff, site, template, big };
 });
 
 describe("AirtableStore", () => {
@@ -52,19 +58,35 @@ describe("AirtableStore", () => {
     expect(await store.getUserByEmail("nobody@example.org")).toBeNull();
   });
 
-  it("loads templates with steps and dependencies", async () => {
+  it("loads templates with steps, dependencies and multiple owner roles", async () => {
     const t = await store.getTemplate(ids.template);
-    expect(t?.steps).toHaveLength(SAMPLE_TEMPLATES[0].steps.length);
-    const ship = t!.steps.find((s) => s.title === "Ship program supplies")!;
-    expect(ship.dependsOnStepIds).toHaveLength(2);
-    expect(ship).toMatchObject({ offsetAmount: 3, offsetUnit: "Weeks", timing: "Before", anchor: "Program Start" });
+    expect(t?.steps).toHaveLength(8);
+    const ship = t!.steps.find((s) => s.title === "Ship curriculum materials")!;
+    expect(ship.dependsOnStepIds).toHaveLength(1);
+    expect(ship).toMatchObject({ offsetAmount: 3, offsetUnit: "Weeks", timing: "Before", anchor: "Program Start", defaultOwnerRoles: ["Operations Director"] });
+    const big = (await store.getTemplate(ids.big))!;
+    expect(big.steps).toHaveLength(141);
+    expect(big.steps.find((s) => s.title === "Select lead instructors")!.defaultOwnerRoles).toEqual(["Program Manager", "Executive Director"]);
+  });
+
+  it("creates all 141 spreadsheet tasks in batches of 10", async () => {
+    const template = (await store.getTemplate(ids.big))!;
+    const { drafts } = generateTaskDrafts({ steps: template.steps, startDate: "2027-06-14", endDate: "2027-06-18" });
+    const project = await store.createProjectWithTasks(
+      { name: "Big", siteId: ids.site, templateId: ids.big, startDate: "2027-06-14", endDate: "2027-06-18", teamUserIds: [], createdByUserId: ids.admin },
+      drafts,
+    );
+    const counts = fake.requests.filter((r) => r.method === "POST" && r.table === S.tasks.table).map((r) => r.count);
+    expect(counts).toEqual([...Array(14).fill(10), 1]);
+    expect(project.taskIds).toHaveLength(141);
+    expect(project.status).toBe("Planning");
   });
 
   it("creates a project with generated tasks, dependencies, and a status that persists", async () => {
     const template = (await store.getTemplate(ids.template))!;
     const { drafts } = generateTaskDrafts({
       steps: template.steps, startDate: "2027-04-15", endDate: "2027-05-20",
-      roleAssignments: { "Program Manager": [ids.staff] },
+      roleAssignments: { "Site Partner": [ids.staff] },
     });
 
     const project = await store.createProjectWithTasks(
@@ -72,20 +94,17 @@ describe("AirtableStore", () => {
       drafts,
     );
 
-    // Batching respected: 11 tasks → 2 create requests (10 + 1)
-    const taskCreates = fake.requests.filter((r) => r.method === "POST" && r.table === S.tasks.table);
-    expect(taskCreates.map((r) => r.count)).toEqual([10, 1]);
 
     expect(project).toMatchObject({ name: "Spring 2027 – Sample U", status: "Planning", siteName: "Sample University Pool", templateName: template.name, startDate: "2027-04-15" });
-    expect(project.taskIds).toHaveLength(11);
+    expect(project.taskIds).toHaveLength(8);
     expect(project.teamUserIds.sort()).toEqual([ids.admin, ids.staff].sort());
 
     const tasks = await store.getTasksByIds(project.taskIds);
-    const ship = tasks.find((t) => t.title === "Ship program supplies")!;
+    const ship = tasks.find((t) => t.title === "Ship curriculum materials")!;
     expect(ship.dueDate).toBe("2027-03-25");
     expect(ship.status).toBe("Not Started");
-    expect(ship.dependsOnTaskIds.map((id) => tasks.find((t) => t.id === id)!.title).sort()).toEqual(["Confirm participant quantities", "Confirm shipping address"]);
-    expect(tasks.find((t) => t.title === "Open family registration (NMU-managed)")!.assigneeIds).toEqual([ids.staff]);
+    expect(ship.dependsOnTaskIds.map((id) => tasks.find((t) => t.id === id)!.title)).toEqual(["Confirm shipping address"]);
+    expect(tasks.find((t) => t.title === "Confirm YMCA has opened registration")!.assigneeIds).toEqual([ids.staff]);
 
     // Staff user's inverse links now include the project and their tasks (used for access checks)
     const staff = (await store.getUser(ids.staff))!;

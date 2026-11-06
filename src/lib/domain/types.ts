@@ -26,6 +26,8 @@ export interface User {
   name: string;
   email: string;
   accessLevel: AccessLevel;
+  /** Job title, e.g. "Program Manager". Used to pre-fill role assignments; NOT a permission. */
+  jobTitle: string;
   active: boolean;
   /** IDs of projects where this user is on the team */
   projectIds: string[];
@@ -52,7 +54,8 @@ export interface TemplateStep {
   offsetUnit: OffsetUnit;
   timing: Timing;
   anchor: Anchor;
-  defaultOwnerRole: string;
+  /** One or more roles that share the task, e.g. ["Program Manager", "Executive Director"] */
+  defaultOwnerRoles: string[];
   dependsOnStepIds: string[];
 }
 

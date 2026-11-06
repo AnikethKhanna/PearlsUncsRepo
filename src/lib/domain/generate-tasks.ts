@@ -49,8 +49,8 @@ export function generateTaskDrafts(opts: GenerateOptions): GenerateResult {
         templateStepId: step.id,
         title: step.title,
         description: step.description,
-        ownerRole: step.defaultOwnerRole,
-        assigneeIds: [...(opts.roleAssignments?.[step.defaultOwnerRole] ?? [])],
+        ownerRole: step.defaultOwnerRoles.join(", "),
+        assigneeIds: [...new Set(step.defaultOwnerRoles.flatMap((role) => opts.roleAssignments?.[role] ?? []))],
         phase: step.phase,
         order: step.order,
         dueDate: calculateDueDate(step, opts.startDate, opts.endDate),
@@ -69,7 +69,7 @@ export function generateTaskDrafts(opts: GenerateOptions): GenerateResult {
 export function rolesForSteps(steps: TemplateStep[]): string[] {
   const roles: string[] = [];
   for (const s of [...steps].sort((a, b) => a.order - b.order)) {
-    if (s.defaultOwnerRole && !roles.includes(s.defaultOwnerRole)) roles.push(s.defaultOwnerRole);
+    for (const role of s.defaultOwnerRoles) if (role && !roles.includes(role)) roles.push(role);
   }
   return roles;
 }

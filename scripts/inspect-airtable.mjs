@@ -25,7 +25,7 @@ const TEXT = ["singleLineText", "multilineText", "richText", "email", "singleSel
 const EXPECTED = {
   users: { email: ["email", "singleLineText"], accessLevel: ["singleSelect", "singleLineText"], active: ["checkbox"], assignedTasks: LINK, projects: LINK },
   templates: { active: ["checkbox"], steps: LINK },
-  steps: { template: LINK, order: ["number", "autoNumber"], offsetAmount: ["number"], offsetUnit: ["singleSelect", "singleLineText"], timing: ["singleSelect", "singleLineText"], anchor: ["singleSelect", "singleLineText"], dependsOn: LINK },
+  steps: { template: LINK, order: ["number", "autoNumber"], offsetAmount: ["number"], offsetUnit: ["singleSelect", "singleLineText"], timing: ["singleSelect", "singleLineText"], anchor: ["singleSelect", "singleLineText"], defaultOwnerRoles: ["multipleSelects", "singleSelect", "singleLineText"], dependsOn: LINK },
   projects: { site: LINK, template: LINK, startDate: ["date"], endDate: ["date"], status: ["singleSelect"], team: LINK, tasks: LINK, createdBy: LINK },
   tasks: { project: LINK, templateStep: LINK, assignees: LINK, order: ["number"], dueDate: ["date"], status: ["singleSelect"], dependsOn: LINK, completedAt: ["date"], documentLinks: ["multilineText", "url", "singleLineText", "richText"] },
 };
