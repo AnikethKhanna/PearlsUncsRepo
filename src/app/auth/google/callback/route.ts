@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
   const user = await getStore().getUserByEmail(claims.email);
   if (!user || !user.active) return fail("not-registered");
 
-  const res = NextResponse.redirect(new URL("/projects", request.url));
+  const res = NextResponse.redirect(new URL("/my-tasks", request.url));
   res.cookies.set(sessionCookie(user.id));
   res.cookies.delete({ name: OAUTH_STATE_COOKIE, path: "/auth/google" });
   return res;

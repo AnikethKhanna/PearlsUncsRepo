@@ -3,11 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Alert, Badge, Card, PageHeader, ProgressBar, ProjectStatusBadge, TaskStatusBadge } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current-user";
-import { canUpdateTaskIn, canViewProject } from "@/lib/auth/permissions";
+import { can, canUpdateTask, canViewProject, canViewTask } from "@/lib/auth/permissions";
 import { getStore } from "@/lib/data";
 import { formatDisplayDate, today } from "@/lib/domain/dates";
 import { isComplete, isOverdue, openPrerequisites, projectProgress } from "@/lib/domain/task-state";
-import { TaskStatusForm } from "./task-status-form";
+import { TaskStatusForm } from "@/components/task-status-form";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -21,12 +21,14 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   // Same response for "doesn't exist" and "not allowed", so project IDs can't be probed.
   if (!project || !canViewProject(user, project)) notFound();
 
-  const [tasks, users] = await Promise.all([store.getTasksByIds(project.taskIds), store.listUsers()]);
+  const [allTasks, users] = await Promise.all([store.getTasksByIds(project.taskIds), store.listUsers()]);
   const userNames = new Map(users.map((u) => [u.id, u.name]));
-  const byId = new Map(tasks.map((t) => [t.id, t]));
+  // Blocked/waiting status needs every task; only tasks this user may see are listed.
+  const byId = new Map(allTasks.map((t) => [t.id, t]));
+  const tasks = allTasks.filter((t) => canViewTask(user, project, t));
+  const seesAll = can(user, "task.viewAll");
   const now = today();
   const progress = projectProgress(tasks, now);
-  const editable = canUpdateTaskIn(user, project);
   const sorted = [...tasks].sort(
     (a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.order - b.order,
   );
@@ -55,6 +57,12 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
 
       <div className="space-y-4">
         {created === "1" && <Alert tone="success">Project created with {tasks.length} tasks.</Alert>}
+        {!seesAll && (
+          <Alert tone="info">
+            Showing only your {tasks.length} task{tasks.length === 1 ? "" : "s"} in this project (of {allTasks.length}).
+            Admins see every task.
+          </Alert>
+        )}
         {project.status === "Setting Up" && (
           <Alert tone="warning">
             This project didn&apos;t finish setting up. Some tasks may be missing — check against the template.
@@ -65,7 +73,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           <div className="flex items-center gap-4">
             <ProgressBar percent={progress.percent} label="Project progress" />
             <span className="whitespace-nowrap text-sm text-slate-700">
-              {progress.complete} of {progress.total} tasks complete
+              {progress.complete} of {progress.total} {seesAll ? "tasks" : "of your tasks"} complete
             </span>
           </div>
           <div className="mt-3 flex gap-2">
@@ -75,7 +83,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
         </Card>
 
         <Card>
-          <h2 className="border-b border-slate-200 px-5 py-3 text-lg font-semibold">Tasks</h2>
+          <h2 className="border-b border-slate-200 px-5 py-3 text-lg font-semibold">
+            {seesAll ? "Tasks" : "Your tasks"}
+          </h2>
           {sorted.length === 0 ? (
             <p className="p-5 text-sm text-slate-600">No tasks.</p>
           ) : (
@@ -120,7 +130,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
                               </p>
                             )}
                           </div>
-                          {editable ? (
+                          {canUpdateTask(user, project, t) ? (
                             <TaskStatusForm taskId={t.id} status={t.status} taskTitle={t.title} />
                           ) : (
                             <TaskStatusBadge status={t.status} />

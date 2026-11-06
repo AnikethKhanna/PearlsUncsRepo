@@ -17,10 +17,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       )}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <Link href="/projects" className="text-lg font-bold text-brand-700">
+          <Link href="/my-tasks" className="text-lg font-bold text-brand-700">
             NMU Onboarding
           </Link>
           <nav aria-label="Main" className="flex flex-1 flex-wrap gap-4 text-sm font-medium">
+            <Link href="/my-tasks" className="text-slate-700 hover:text-brand-700">
+              My Tasks
+            </Link>
             <Link href="/projects" className="text-slate-700 hover:text-brand-700">
               All Projects
             </Link>

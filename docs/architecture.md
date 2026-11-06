@@ -98,8 +98,8 @@ Never paste these values into chat, issues or commits. They belong only in
 
 | Level | Can | Status |
 | --- | --- | --- |
-| Admin | everything | confirmed by requirements |
-| Staff | see projects they're on the team for or have a task in; update task status | **assumption**: staff can't create projects yet (one-line change in `ROLE_PERMISSIONS`) |
+| Admin | see and update every project and task; create projects | confirmed by requirements |
+| Staff | see only the tasks assigned to them (My Tasks, and their own tasks inside a project); update only those tasks; see only projects where they have a task | per team decision; **staff can't create projects** (one-line change in `ROLE_PERMISSIONS`) |
 | Partner | nothing yet | deferred pending sponsor decision |
 
 These checks run on the server for every page and action. An inaccessible
@@ -114,7 +114,7 @@ tests that replay a Staff or Partner session cookie against Admin forms.
 2. ✅ Phase 2 workflow: create project → generate tasks → save → open → change status → persists after refresh.
 3. ⏳ Connect to the real base: run `airtable:inspect`, adjust `schema.ts`, enter 2 real templates. **(team, needs credentials)**
 4. ⏳ Deploy to Vercel with Google sign-in and verify reads and writes against Airtable on the deployed URL.
-5. ⏳ My Tasks dashboard (Feature B): data access exists (`User.assignedTaskIds`), page still to build.
+5. ✅ My Tasks dashboard (Feature B): overdue / next 7 days / later, status and project filters, inline status updates.
 6. ⏳ All Projects (Feature C): add upcoming deadlines and filters to the existing list.
 
 **After the demo (Phase 4–5):** task detail page with notes and Drive links,

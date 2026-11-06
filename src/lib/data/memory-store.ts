@@ -6,7 +6,8 @@
  * when the server restarts. The app shows a warning banner while it is in use,
  * and src/lib/config.ts refuses it in production deployments.
  */
-import { today } from "@/lib/domain/dates";
+import { addDays, today } from "@/lib/domain/dates";
+import { generateTaskDrafts, rolesForSteps } from "@/lib/domain/generate-tasks";
 import type {
   NewProjectInput,
   ProgramTemplate,
@@ -43,7 +44,12 @@ function freshState(): State {
 
 export class MemoryStore implements DataStore {
   readonly kind = "memory" as const;
-  constructor(private readonly s: State = freshState()) {}
+  constructor(
+    private readonly s: State = freshState(),
+    seedProjects = true,
+  ) {
+    if (seedProjects) seedSampleProjects(this);
+  }
 
   private id(prefix: string) {
     return `${prefix}${String(this.s.seq++).padStart(6, "0")}`;
@@ -91,6 +97,11 @@ export class MemoryStore implements DataStore {
   }
 
   async createProjectWithTasks(input: NewProjectInput, drafts: TaskDraft[]): Promise<Project> {
+    return structuredClone(this.insertProject(input, drafts));
+  }
+
+  /** Synchronous insert, shared by createProjectWithTasks and the sample-project seeding. */
+  insertProject(input: NewProjectInput, drafts: TaskDraft[]): Project {
     const project: Project = {
       id: this.id("proj"),
       name: input.name,
@@ -129,7 +140,24 @@ export class MemoryStore implements DataStore {
       project.taskIds.push(task.id);
     }
     project.status = "Planning";
-    return structuredClone(project);
+    return project;
+  }
+
+  /** Seeding helper: set a task's status as if it had been updated on its due date. */
+  seedTaskStatus(id: string, status: TaskStatus) {
+    const t = this.s.tasks.find((x) => x.id === id);
+    if (!t) return;
+    t.status = status;
+    t.completedAt = status === "Done" ? (t.dueDate && t.dueDate < today() ? t.dueDate : today()) : null;
+  }
+
+  seedProjectStatus(id: string, status: ProjectStatus) {
+    const p = this.s.projects.find((x) => x.id === id);
+    if (p) p.status = status;
+  }
+
+  tasksOf(projectId: string): Task[] {
+    return this.s.tasks.filter((t) => t.projectId === projectId);
   }
 
   async updateTask(id: string, patch: { status?: TaskStatus; notes?: string }) {
@@ -147,4 +175,81 @@ export class MemoryStore implements DataStore {
     const p = this.s.projects.find((x) => x.id === id);
     if (p) p.status = status;
   }
+}
+
+/**
+ * Pre-loads three SAMPLE projects so every screen has something to show.
+ * Dates are relative to today, so there are always some overdue, current and
+ * upcoming tasks. Project names are marked "(sample)".
+ */
+function seedSampleProjects(store: MemoryStore) {
+  const t0 = today();
+  const users = SAMPLE_USERS.filter((u) => u.active && u.accessLevel !== "Partner");
+  const byTitle = (role: string) =>
+    users.filter((u) => u.jobTitle.toLowerCase() === role.toLowerCase()).map((u) => u.id);
+  const admin = users.find((u) => u.accessLevel === "Admin")!.id;
+
+  const make = (
+    name: string,
+    templateId: string,
+    siteId: string,
+    startDate: string,
+    endDate: string,
+    overrides: Record<string, string[]> = {},
+  ) => {
+    const template = SAMPLE_TEMPLATES.find((t) => t.id === templateId)!;
+    const roleAssignments = Object.fromEntries(
+      rolesForSteps(template.steps).map((r) => [r, overrides[r] ?? byTitle(r)]),
+    );
+    const { drafts } = generateTaskDrafts({ steps: template.steps, startDate, endDate, roleAssignments });
+    const project = store.insertProject(
+      {
+        name,
+        siteId,
+        templateId,
+        startDate,
+        endDate,
+        teamUserIds: [...new Set(Object.values(roleAssignments).flat())],
+        createdByUserId: admin,
+      },
+      drafts,
+    );
+    return { project, tasks: store.tasksOf(project.id) };
+  };
+
+  // 1. In-flight collegiate program (from the spreadsheet), 5 weeks out.
+  const start1 = addDays(t0, 35);
+  const p1 = make(
+    "Fall Swim Safely – Sample University (sample)",
+    "tplCollegiate",
+    "siteUW",
+    start1,
+    addDays(start1, 4),
+  );
+  p1.tasks.forEach((t, i) => {
+    const due = t.dueDate ?? t0;
+    if (due < addDays(t0, -14))
+      store.seedTaskStatus(t.id, i % 9 === 4 ? "Not Started" : "Done"); // a few left overdue
+    else if (due < t0) store.seedTaskStatus(t.id, (["In Progress", "Not Started", "Done"] as const)[i % 3]);
+    else if (due <= addDays(t0, 7) && i % 3 === 0) store.seedTaskStatus(t.id, "In Progress");
+  });
+  store.seedProjectStatus(p1.project.id, "Active");
+
+  // 2. Illustrative YMCA program, 3 weeks out: shows a blocked task.
+  const start2 = addDays(t0, 21);
+  const p2 = make("Learn to Swim – Sample YMCA (sample)", "tplYmca", "siteY", start2, addDays(start2, 35));
+  for (const t of p2.tasks) if (t.title === "Sign MOU with YMCA branch") store.seedTaskStatus(t.id, "Done");
+  store.seedProjectStatus(p2.project.id, "Active");
+
+  // 3. A finished program, kept as history.
+  const start3 = addDays(t0, -120);
+  const p3 = make(
+    "Spring Swim Safely – Sample University (sample)",
+    "tplCollegiate",
+    "siteUW",
+    start3,
+    addDays(start3, 4),
+  );
+  for (const t of p3.tasks) store.seedTaskStatus(t.id, "Done");
+  store.seedProjectStatus(p3.project.id, "Completed");
 }

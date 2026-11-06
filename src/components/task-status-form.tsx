@@ -2,7 +2,7 @@
 
 import { useActionState, useRef } from "react";
 import { TASK_STATUSES, type TaskStatus } from "@/lib/domain/types";
-import { updateTaskStatus, type TaskUpdateState } from "../actions";
+import { updateTaskStatus, type TaskUpdateState } from "@/app/(app)/projects/actions";
 
 /** Status dropdown that saves as soon as it changes. */
 export function TaskStatusForm({ taskId, status, taskTitle, disabled }: { taskId: string; status: TaskStatus; taskTitle: string; disabled?: boolean }) {

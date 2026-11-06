@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AuthorizationError, getCurrentUser, requirePermission } from "@/lib/auth/current-user";
-import { canUpdateTaskIn } from "@/lib/auth/permissions";
+import { canUpdateTask } from "@/lib/auth/permissions";
 import { getStore } from "@/lib/data";
 import { isIsoDate } from "@/lib/domain/dates";
 import { generateTaskDrafts, rolesForSteps } from "@/lib/domain/generate-tasks";
@@ -98,7 +98,7 @@ export interface TaskUpdateState {
   savedAt?: number;
 }
 
-/** Feature D (minimal): change a task's status. Checks project access on the server. */
+/** Change a task's status. Admins may update any task; Staff only tasks assigned to them (checked here, on the server). */
 export async function updateTaskStatus(_prev: TaskUpdateState, formData: FormData): Promise<TaskUpdateState> {
   try {
     const user = await getCurrentUser();
@@ -111,11 +111,12 @@ export async function updateTaskStatus(_prev: TaskUpdateState, formData: FormDat
     const store = getStore();
     const task = await store.getTask(taskId);
     const project = task?.projectId ? await store.getProject(task.projectId) : null;
-    if (!task || !project || !canUpdateTaskIn(user, project)) return { error: "You don't have permission to update this task." };
+    if (!task || !project || !canUpdateTask(user, project, task)) return { error: "You don't have permission to update this task." };
 
     await store.updateTask(task.id, { status });
     revalidatePath(`/projects/${project.id}`);
     revalidatePath("/projects");
+    revalidatePath("/my-tasks");
     return { savedAt: Date.now() };
   } catch (err) {
     console.error("updateTaskStatus failed:", err instanceof Error ? err.message : "unknown error");

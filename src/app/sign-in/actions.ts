@@ -21,7 +21,7 @@ export async function devSignIn(_prev: SignInState, formData: FormData): Promise
   const user = await getStore().getUserByEmail(email);
   if (!user || !user.active) return { error: "No active NMU account uses that email. Ask an administrator to add you." };
   await startSession(user.id);
-  redirect("/projects");
+  redirect("/my-tasks");
 }
 
 export async function signOut() {

@@ -23,7 +23,7 @@ const ERRORS: Record<string, string> = {
 export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
   const isLocalDev = process.env.NODE_ENV === "development";
   const problems = configProblems();
-  if (problems.length === 0 && (await getCurrentUser())) redirect("/projects");
+  if (problems.length === 0 && (await getCurrentUser())) redirect("/my-tasks");
   const { error } = await searchParams;
   const googleEnabled = !!getGoogleOAuthConfig();
   const devBlocker = devSignInBlocker();
