@@ -7,12 +7,13 @@ import { NewProjectForm } from "./new-project-form";
 
 export const metadata: Metadata = { title: "New Project" };
 
-export default async function NewProjectPage() {
+export default async function NewProjectPage({ searchParams }: PageProps<"/projects/new">) {
   const user = await requireUser();
   if (!can(user, "project.create")) {
     return <Alert tone="error">Only administrators can create projects.</Alert>;
   }
   const store = getStore();
+  const { template } = await searchParams;
   const [sites, templates, users] = await Promise.all([
     store.listSites(),
     store.listTemplates({ activeOnly: true }),
@@ -32,6 +33,7 @@ export default async function NewProjectPage() {
       <NewProjectForm
         sites={sites.map((s) => ({ id: s.id, name: s.name, location: s.location }))}
         templates={templates}
+        initialTemplateId={templates.some((t) => t.id === template) ? (template as string) : ""}
         staff={staff}
       />
     </>

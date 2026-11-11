@@ -25,7 +25,7 @@ const TEXT = ["singleLineText", "multilineText", "richText", "email", "singleSel
 const EXPECTED = {
   users: { email: ["email", "singleLineText"], accessLevel: ["singleSelect", "singleLineText"], active: ["checkbox"], assignedTasks: LINK, projects: LINK },
   templates: { active: ["checkbox"], steps: LINK },
-  steps: { template: LINK, order: ["number", "autoNumber"], offsetAmount: ["number"], offsetUnit: ["singleSelect", "singleLineText"], timing: ["singleSelect", "singleLineText"], anchor: ["singleSelect", "singleLineText"], defaultOwnerRoles: ["multipleSelects", "singleSelect", "singleLineText"], dependsOn: LINK },
+  steps: { template: LINK, order: ["number", "autoNumber"], offsetAmount: ["number"], offsetUnit: ["singleSelect", "singleLineText"], timing: ["singleSelect", "singleLineText"], anchor: ["singleSelect", "singleLineText"], defaultOwnerRoles: ["multipleSelects"], dependsOn: LINK, defaultAssignees: LINK },
   projects: { site: LINK, template: LINK, startDate: ["date"], endDate: ["date"], status: ["singleSelect"], team: LINK, tasks: LINK, createdBy: LINK },
   tasks: { project: LINK, templateStep: LINK, assignees: LINK, order: ["number"], dueDate: ["date"], status: ["singleSelect"], dependsOn: LINK, completedAt: ["date"], documentLinks: ["multilineText", "url", "singleLineText", "richText"] },
 };
@@ -54,6 +54,9 @@ for (const t of tables) {
 }
 
 // ---- Compare with the app's mapping ----
+// Fields the app works without (features that need them say so).
+const OPTIONAL = new Set(["steps.defaultAssignees"]);
+
 const problems = [];
 const warnings = [];
 for (const [key, spec] of Object.entries(AIRTABLE_SCHEMA)) {
@@ -66,7 +69,9 @@ for (const [key, spec] of Object.entries(AIRTABLE_SCHEMA)) {
   for (const [fkey, fname] of Object.entries(spec.fields)) {
     const f = fields.get(fname);
     if (!f) {
-      problems.push(`Missing field "${spec.table}" → "${fname}" (schema.ts → ${key}.fields.${fkey})`);
+      const msg = `Missing field "${spec.table}" → "${fname}" (schema.ts → ${key}.fields.${fkey})`;
+      if (OPTIONAL.has(`${key}.${fkey}`)) warnings.push(`${msg}: optional, needed only for "Save as Template" with "remember who was assigned"`);
+      else problems.push(msg);
       continue;
     }
     const expected = EXPECTED[key]?.[fkey] ?? (fkey === "name" || fkey === "title" ? [...TEXT, "autoNumber"] : null);

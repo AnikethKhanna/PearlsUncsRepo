@@ -78,6 +78,21 @@ export class FakeAirtable {
       });
       return json({ records: structuredClone(out) });
     }
+    if (method === "DELETE") {
+      const ids = u.searchParams.getAll("records[]");
+      this.requests.push({ method, table, count: ids.length });
+      if (ids.length > 10) return json({ error: { type: "INVALID_REQUEST", message: "Too many records" } }, 422);
+      for (const rid of ids) {
+        if (!this.table(table).has(rid)) return json({ error: "NOT_FOUND" }, 404);
+        this.table(table).delete(rid);
+        // Like Airtable: links pointing at a deleted record disappear everywhere.
+        for (const t of this.tables.values())
+          for (const rec of t.values())
+            for (const [k, v] of Object.entries(rec.fields))
+              if (Array.isArray(v) && v.includes(rid)) rec.fields[k] = v.filter((x) => x !== rid);
+      }
+      return json({ records: ids.map((rid) => ({ id: rid, deleted: true })) });
+    }
     return json({ error: "NOT_SUPPORTED" }, 400);
   };
 

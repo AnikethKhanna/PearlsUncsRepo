@@ -74,10 +74,15 @@ export const AIRTABLE_SCHEMA = {
       timing: "Timing",
       /** Single select: Program Start | Program End */
       anchor: "Anchor",
-      /** Multiple select (or comma-separated text), e.g. "Program Manager, Executive Director" */
+      /** Multiple select, e.g. Program Manager + Executive Director. (Comma-separated text can be READ, but "Save as Template" writes a list, which needs Multiple select.) */
       defaultOwnerRoles: "Default Owner Role",
       /** Link to other Template Steps (prerequisites) */
       dependsOn: "Depends On",
+      /**
+       * OPTIONAL. Link to Users. Only written when a template is saved from a program
+       * with "include assignments" ticked; add this field in Airtable to use that option.
+       */
+      defaultAssignees: "Default Assignees",
     },
   },
   projects: {

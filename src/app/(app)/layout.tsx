@@ -27,6 +27,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/projects" className="text-slate-700 hover:text-brand-700">
               All Projects
             </Link>
+            {can(user, "template.manage") && (
+              <Link href="/templates" className="text-slate-700 hover:text-brand-700">
+                Templates
+              </Link>
+            )}
             {can(user, "project.create") && (
               <Link href="/projects/new" className="text-slate-700 hover:text-brand-700">
                 New Project

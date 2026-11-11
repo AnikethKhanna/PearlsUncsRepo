@@ -14,8 +14,9 @@ export const PERMISSIONS = [
   "task.viewAll", // see every task in a project you can see, not only your own
   "task.updateOwn", // change status on tasks assigned to you
   "task.updateAny", // change status on any task in a project you can see
-  "task.create", // add extra tasks to a project
-  "admin.manage", // templates, users, sites, settings
+  "program.editTasks", // add, edit, remove and reorder tasks in ONE program (never changes its template)
+  "template.manage", // view templates and "Save as Template" from a program
+  "admin.manage", // users, sites, settings
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -30,7 +31,7 @@ export const ROLE_PERMISSIONS: Record<AccessLevel, readonly Permission[]> = {
 
 /** Plain-language summary shown in the app, so testers know what to expect. */
 export const ACCESS_SUMMARY: Record<AccessLevel, string> = {
-  Admin: "Sees and updates every project and task, and can create projects.",
+  Admin: "Sees and updates every project and task, creates projects, edits program tasks and saves templates.",
   Staff: "Sees and updates only the tasks assigned to them.",
   Partner: "No access yet (external partner access is pending the sponsor's decision).",
 };

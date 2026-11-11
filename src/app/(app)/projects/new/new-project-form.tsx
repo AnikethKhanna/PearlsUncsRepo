@@ -11,14 +11,16 @@ interface Props {
   sites: { id: string; name: string; location: string }[];
   templates: ProgramTemplate[];
   staff: { id: string; name: string; jobTitle: string }[];
+  /** Pre-selected template, e.g. from "Start a program from this template" */
+  initialTemplateId?: string;
 }
 
-export function NewProjectForm({ sites, templates, staff }: Props) {
+export function NewProjectForm({ sites, templates, staff, initialTemplateId = "" }: Props) {
   const [state, action, pending] = useActionState<CreateProjectState, FormData>(createProject, {});
   // Controlled inputs, so values survive a failed submit (React resets uncontrolled forms after an action).
   const [name, setName] = useState("");
   const [siteId, setSiteId] = useState("");
-  const [templateId, setTemplateId] = useState("");
+  const [templateId, setTemplateId] = useState(initialTemplateId);
   const [roleChoices, setRoleChoices] = useState<Record<string, string>>({});
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");

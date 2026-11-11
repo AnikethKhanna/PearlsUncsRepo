@@ -134,6 +134,14 @@ export class AirtableClient {
     return updated;
   }
 
+  /** Delete records by ID, 10 per request. */
+  async destroy(table: string, ids: string[]): Promise<void> {
+    for (const chunk of chunks(ids, MAX_BATCH)) {
+      const qs = chunk.map((id) => `records[]=${encodeURIComponent(id)}`).join("&");
+      await this.request<{ records: { id: string; deleted: boolean }[] }>("DELETE", `/${encodeURIComponent(table)}?${qs}`);
+    }
+  }
+
   private async throttle(): Promise<void> {
     const prev = this.queue;
     let release!: () => void;

@@ -1,19 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Alert, Badge, Card, PageHeader, ProgressBar, ProjectStatusBadge, TaskStatusBadge } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Card,
+  PageHeader,
+  ProgressBar,
+  ProjectStatusBadge,
+  TaskStatusBadge,
+  buttonPrimary,
+  buttonSecondary,
+} from "@/components/ui";
 import { requireUser } from "@/lib/auth/current-user";
 import { can, canUpdateTask, canViewProject, canViewTask } from "@/lib/auth/permissions";
 import { getStore } from "@/lib/data";
 import { formatDisplayDate, today } from "@/lib/domain/dates";
 import { isComplete, isOverdue, openPrerequisites, projectProgress } from "@/lib/domain/task-state";
 import { TaskStatusForm } from "@/components/task-status-form";
+import { phasesOf, sortForDisplay } from "@/lib/domain/program-edit";
+import { moveTaskAction } from "./tasks/actions";
 
 export const metadata: Metadata = { title: "Project" };
 
 export default async function ProjectPage({ params, searchParams }: PageProps<"/projects/[id]">) {
   const { id } = await params;
-  const { created } = await searchParams;
+  const { created, saved, removed } = await searchParams;
   const user = await requireUser();
   const store = getStore();
 
@@ -27,15 +39,12 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   const byId = new Map(allTasks.map((t) => [t.id, t]));
   const tasks = allTasks.filter((t) => canViewTask(user, project, t));
   const seesAll = can(user, "task.viewAll");
+  const editsProgram = can(user, "program.editTasks");
   const now = today();
   const progress = projectProgress(tasks, now);
-  const sorted = [...tasks].sort(
-    (a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.order - b.order,
-  );
-  const PHASE_ORDER = ["Pre-launch", "During program", "Post-program"];
-  const phases = [...new Set(sorted.map((t) => t.phase || "Other"))].sort(
-    (a, b) => (PHASE_ORDER.indexOf(a) + 1 || 99) - (PHASE_ORDER.indexOf(b) + 1 || 99),
-  );
+  // The program's own order (editable), grouped by phase.
+  const sorted = sortForDisplay(tasks);
+  const phases = phasesOf(sorted);
 
   return (
     <>
@@ -52,11 +61,44 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             {project.endDate && ` – ${formatDisplayDate(project.endDate)}`}
           </>
         }
-        actions={<ProjectStatusBadge status={project.status} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <ProjectStatusBadge status={project.status} />
+            {editsProgram && (
+              <Link href={`/projects/${project.id}/tasks/new`} className={buttonPrimary}>
+                Add task
+              </Link>
+            )}
+            {can(user, "template.manage") && project.startDate && (
+              <Link href={`/projects/${project.id}/save-as-template`} className={buttonSecondary}>
+                Save as template
+              </Link>
+            )}
+          </div>
+        }
       />
 
       <div className="space-y-4">
         {created === "1" && <Alert tone="success">Project created with {tasks.length} tasks.</Alert>}
+        {typeof saved === "string" && <Alert tone="success">Task saved in this program.</Alert>}
+        {removed === "1" && <Alert tone="success">Task removed from this program.</Alert>}
+        {editsProgram && (
+          <Alert tone="info">
+            Editing here changes <strong>this program only</strong>
+            {project.templateName ? (
+              <> — not the &ldquo;{project.templateName}&rdquo; template or other programs made from it</>
+            ) : null}
+            .
+            {project.templateId && can(user, "template.manage") && (
+              <>
+                {" "}
+                <Link href={`/templates/${project.templateId}`} className="font-semibold underline">
+                  View the template
+                </Link>
+              </>
+            )}
+          </Alert>
+        )}
         {!seesAll && (
           <Alert tone="info">
             Showing only your {tasks.length} task{tasks.length === 1 ? "" : "s"} in this project (of {allTasks.length}).
@@ -108,14 +150,19 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
                       return (
                         <li
                           key={t.id}
+                          id={`task-${t.id}`}
                           className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
                           data-testid="task-row"
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={`font-medium ${isComplete(t) ? "text-slate-500" : "text-slate-900"}`}>
+                              <Link
+                                href={`/projects/${project.id}/tasks/${t.id}`}
+                                data-testid="task-title"
+                                className={`font-medium hover:underline ${isComplete(t) ? "text-slate-500" : "text-slate-900"}`}
+                              >
                                 {t.title}
-                              </span>
+                              </Link>
                               {overdue && <Badge tone="red">Overdue</Badge>}
                               {blockers.length > 0 && !isComplete(t) && <Badge tone="amber">Blocked</Badge>}
                             </div>
@@ -130,11 +177,14 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
                               </p>
                             )}
                           </div>
-                          {canUpdateTask(user, project, t) ? (
-                            <TaskStatusForm taskId={t.id} status={t.status} taskTitle={t.title} />
-                          ) : (
-                            <TaskStatusBadge status={t.status} />
-                          )}
+                          <div className="flex items-start gap-3">
+                            {canUpdateTask(user, project, t) ? (
+                              <TaskStatusForm taskId={t.id} status={t.status} taskTitle={t.title} />
+                            ) : (
+                              <TaskStatusBadge status={t.status} />
+                            )}
+                            {editsProgram && <EditControls projectId={project.id} task={t} />}
+                          </div>
                         </li>
                       );
                     })}
@@ -146,5 +196,32 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
         </Card>
       </div>
     </>
+  );
+}
+
+/** Edit / move up / move down for one task in this program (admins). */
+function EditControls({ projectId, task }: { projectId: string; task: { id: string; title: string } }) {
+  const btn = "rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50";
+  return (
+    <div className="flex items-center gap-1">
+      <Link href={`/projects/${projectId}/tasks/${task.id}`} className={btn} aria-label={`Edit ${task.title}`}>
+        Edit
+      </Link>
+      {(["up", "down"] as const).map((direction) => (
+        <form key={direction} action={moveTaskAction}>
+          <input type="hidden" name="projectId" value={projectId} />
+          <input type="hidden" name="taskId" value={task.id} />
+          <input type="hidden" name="direction" value={direction} />
+          <button
+            type="submit"
+            className={btn}
+            aria-label={`Move ${task.title} ${direction}`}
+            title={`Move ${direction}`}
+          >
+            {direction === "up" ? "↑" : "↓"}
+          </button>
+        </form>
+      ))}
+    </div>
   );
 }

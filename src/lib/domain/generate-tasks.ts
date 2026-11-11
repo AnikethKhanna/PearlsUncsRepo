@@ -50,19 +50,27 @@ export function generateTaskDrafts(opts: GenerateOptions): GenerateResult {
         title: step.title,
         description: step.description,
         ownerRole: step.defaultOwnerRoles.join(", "),
-        assigneeIds: [...new Set(step.defaultOwnerRoles.flatMap((role) => opts.roleAssignments?.[role] ?? []))],
+        assigneeIds: assigneesFor(step, opts.roleAssignments),
         phase: step.phase,
         order: step.order,
         dueDate: calculateDueDate(step, opts.startDate, opts.endDate),
         dependsOnKeys,
       };
     })
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.order - b.order);
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.order - b.order)
+    // The program's own order starts chronological; editors can reorder it later.
+    .map((d, i) => ({ ...d, order: i + 1 }));
 
   const cycle = findCycle(drafts);
   if (cycle) warnings.push(`Template has a circular dependency: ${cycle.join(" → ")}. Please fix the template.`);
 
   return { drafts, warnings };
+}
+
+/** People picked for the step's roles; if nobody is picked, the step's saved default people (if any). */
+function assigneesFor(step: TemplateStep, roleAssignments: Record<string, string[]> = {}): string[] {
+  const byRole = [...new Set(step.defaultOwnerRoles.flatMap((role) => roleAssignments[role] ?? []))];
+  return byRole.length > 0 ? byRole : [...step.defaultAssigneeIds];
 }
 
 /** Distinct owner roles used by a set of steps, in template order. */

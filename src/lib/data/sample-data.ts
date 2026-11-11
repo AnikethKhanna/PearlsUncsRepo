@@ -30,7 +30,7 @@ export const SAMPLE_SITES: Site[] = [
   { id: "siteY", name: "Sample YMCA Branch", location: "Tacoma, WA", partnerOrganization: "Sample YMCA", siteType: "YMCA" },
 ];
 
-type StepSeed = Omit<TemplateStep, "id" | "templateId" | "dependsOnStepIds" | "defaultOwnerRoles"> & {
+type StepSeed = Omit<TemplateStep, "id" | "templateId" | "dependsOnStepIds" | "defaultOwnerRoles" | "defaultAssigneeIds"> & {
   key: string;
   dependsOn?: string[];
   defaultOwnerRole: string;
@@ -40,6 +40,7 @@ function buildTemplate(id: string, name: string, programType: string, descriptio
   const steps: TemplateStep[] = seeds.map(({ key, dependsOn, defaultOwnerRole, ...rest }) => ({
     ...rest,
     defaultOwnerRoles: defaultOwnerRole ? [defaultOwnerRole] : [],
+    defaultAssigneeIds: [],
     id: `${id}_${key}`,
     templateId: id,
     dependsOnStepIds: (dependsOn ?? []).map((k) => `${id}_${k}`),
@@ -69,6 +70,7 @@ export const SAMPLE_TEMPLATES: ProgramTemplate[] = [
       timing: t.timing,
       anchor: t.anchor,
       defaultOwnerRoles: t.roles,
+      defaultAssigneeIds: [],
       dependsOnStepIds: [], // the spreadsheet has no dependency column
     })),
   },

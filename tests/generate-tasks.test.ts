@@ -65,10 +65,10 @@ describe("generateTaskDrafts (dependencies, illustrative YMCA template)", () => 
   });
 
   it("detects circular dependencies", () => {
-    const base = { templateId: "t", description: "", order: 1, phase: "", offsetAmount: 1, offsetUnit: "Days", timing: "Before", anchor: "Program Start", defaultOwnerRoles: [] } as const;
+    const base = { templateId: "t", description: "", order: 1, phase: "", offsetAmount: 1, offsetUnit: "Days", timing: "Before", anchor: "Program Start", defaultOwnerRoles: [], defaultAssigneeIds: [] } as const;
     const steps: TemplateStep[] = [
-      { ...base, defaultOwnerRoles: [], id: "a", title: "A", dependsOnStepIds: ["b"] },
-      { ...base, defaultOwnerRoles: [], id: "b", title: "B", dependsOnStepIds: ["a"] },
+      { ...base, defaultOwnerRoles: [], defaultAssigneeIds: [], id: "a", title: "A", dependsOnStepIds: ["b"] },
+      { ...base, defaultOwnerRoles: [], defaultAssigneeIds: [], id: "b", title: "B", dependsOnStepIds: ["a"] },
     ];
     expect(generateTaskDrafts({ steps, startDate: "2027-01-10", endDate: null }).warnings.some((w) => w.includes("circular"))).toBe(true);
   });

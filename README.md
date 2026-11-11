@@ -19,9 +19,13 @@ Airtable as the data store, hosted on Vercel.
 - The project page shows tasks with owner, due date, and **Blocked** and
   **Overdue** indicators. Staff change status inline, and the change
   persists after a refresh.
-- A basic project list with progress.
-- Server-side access control for Admin, Staff and Partner (Partner has no
-  access yet).
+- **My Tasks** (each person's tasks across programs) and **All Projects**.
+- **Flexible programs:** admins can add, edit, remove and reorder tasks in one
+  program without changing its template or other programs. **Save as
+  Template** turns a program into a new reusable template. The **Templates**
+  pages show what's reusable.
+- Server-side access control: Admins see and change everything; Staff see and
+  update only their own tasks; Partner has no access yet.
 
 See [docs/architecture.md](docs/architecture.md) for the full plan and what's
 next.

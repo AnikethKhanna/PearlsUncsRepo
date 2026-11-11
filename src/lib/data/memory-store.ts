@@ -10,6 +10,10 @@ import { addDays, today } from "@/lib/domain/dates";
 import { generateTaskDrafts, rolesForSteps } from "@/lib/domain/generate-tasks";
 import type {
   NewProjectInput,
+  NewTaskInput,
+  NewTemplateInput,
+  StepDraft,
+  TaskEdit,
   ProgramTemplate,
   Project,
   ProjectStatus,
@@ -175,6 +179,86 @@ export class MemoryStore implements DataStore {
     const p = this.s.projects.find((x) => x.id === id);
     if (p) p.status = status;
   }
+
+  async createTask(input: NewTaskInput): Promise<Task> {
+    const project = this.s.projects.find((p) => p.id === input.projectId);
+    if (!project) throw new Error("Project not found");
+    const task: Task = {
+      ...structuredClone(pickEdit(input)),
+      id: this.id("task"),
+      projectId: project.id,
+      templateStepId: null,
+      order: input.order,
+      status: "Not Started",
+      notes: "",
+      documentLinks: [],
+      completedAt: null,
+    };
+    this.s.tasks.push(task);
+    project.taskIds.push(task.id);
+    return structuredClone(task);
+  }
+
+  async updateTaskDetails(id: string, edit: TaskEdit): Promise<Task> {
+    const t = this.s.tasks.find((x) => x.id === id);
+    if (!t) throw new Error("Task not found");
+    Object.assign(t, structuredClone(pickEdit(edit)));
+    return structuredClone(t);
+  }
+
+  async reorderTasks(updates: { id: string; order: number }[]): Promise<void> {
+    for (const u of updates) {
+      const t = this.s.tasks.find((x) => x.id === u.id);
+      if (t) t.order = u.order;
+    }
+  }
+
+  async deleteTask(id: string): Promise<void> {
+    for (const t of this.s.tasks) t.dependsOnTaskIds = t.dependsOnTaskIds.filter((d) => d !== id);
+    for (const p of this.s.projects) p.taskIds = p.taskIds.filter((t) => t !== id);
+    this.s.tasks = this.s.tasks.filter((t) => t.id !== id);
+  }
+
+  async createTemplate(input: NewTemplateInput, steps: StepDraft[]): Promise<ProgramTemplate> {
+    const templateId = this.id("tpl");
+    const idByKey = new Map(steps.map((d) => [d.key, this.id("step")]));
+    const template: ProgramTemplate = {
+      id: templateId,
+      name: input.name,
+      programType: input.programType,
+      description: input.description,
+      active: true,
+      steps: steps.map((d) => ({
+        id: idByKey.get(d.key)!,
+        templateId,
+        title: d.title,
+        description: d.description,
+        order: d.order,
+        phase: d.phase,
+        offsetAmount: d.offsetAmount,
+        offsetUnit: d.offsetUnit,
+        timing: d.timing,
+        anchor: d.anchor,
+        defaultOwnerRoles: [...d.defaultOwnerRoles],
+        defaultAssigneeIds: [...d.defaultAssigneeIds],
+        dependsOnStepIds: d.dependsOnKeys.map((k) => idByKey.get(k)!).filter(Boolean),
+      })),
+    };
+    this.s.templates.push(template);
+    return structuredClone(template);
+  }
+}
+
+function pickEdit(e: TaskEdit): TaskEdit {
+  return {
+    title: e.title,
+    description: e.description,
+    phase: e.phase,
+    dueDate: e.dueDate,
+    ownerRole: e.ownerRole,
+    assigneeIds: [...e.assigneeIds],
+    dependsOnTaskIds: [...e.dependsOnTaskIds],
+  };
 }
 
 /**

@@ -1,5 +1,9 @@
 import type {
   NewProjectInput,
+  NewTaskInput,
+  NewTemplateInput,
+  StepDraft,
+  TaskEdit,
   ProgramTemplate,
   Project,
   ProjectStatus,
@@ -46,4 +50,20 @@ export interface DataStore {
 
   updateTask(id: string, patch: { status?: TaskStatus; notes?: string }): Promise<Task>;
   updateProjectStatus(id: string, status: ProjectStatus): Promise<void>;
+
+  // ---- Editing one program's tasks (never touches templates or other programs) ----
+
+  /** Add a task to a program. */
+  createTask(input: NewTaskInput): Promise<Task>;
+  /** Change a task's details (title, dates, people, dependencies…). Status is unchanged. */
+  updateTaskDetails(id: string, edit: TaskEdit): Promise<Task>;
+  /** Save new Order values (used for reordering). */
+  reorderTasks(updates: { id: string; order: number }[]): Promise<void>;
+  /** Remove a task; other tasks in its program stop depending on it first. */
+  deleteTask(id: string): Promise<void>;
+
+  // ---- Templates ----
+
+  /** Create a NEW template with its steps, then wire step dependencies. */
+  createTemplate(input: NewTemplateInput, steps: StepDraft[]): Promise<ProgramTemplate>;
 }

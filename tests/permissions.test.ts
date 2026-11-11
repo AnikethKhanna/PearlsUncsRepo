@@ -18,6 +18,14 @@ describe("permissions", () => {
     expect(canUpdateTask(admin, project, otherTask)).toBe(true);
   });
 
+  it("only admins edit program tasks and manage templates by default", () => {
+    for (const p of ["program.editTasks", "template.manage"] as const) {
+      expect(can(user({ accessLevel: "Admin" }), p)).toBe(true);
+      expect(can(user({ accessLevel: "Staff", assignedTaskIds: ["t1"] }), p)).toBe(false);
+      expect(can(user({ accessLevel: "Partner" }), p)).toBe(false);
+    }
+  });
+
   it("staff see and update only their own tasks", () => {
     const staff = user({ assignedTaskIds: ["t1"] });
     expect(can(staff, "project.create")).toBe(false);

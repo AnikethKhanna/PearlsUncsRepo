@@ -79,7 +79,8 @@ every program" is modeled. A third profile is just another template.
 | Offset Unit | Single select: `Days`, `Weeks`, `Months` | Weeks |
 | Timing | Single select: `Before`, `After` | Before |
 | Anchor | Single select: `Program Start`, `Program End` | Program Start |
-| Default Owner Role | Multiple select (or comma-separated text) | "Program Manager, Executive Director" |
+| Default Owner Role | Multiple select | "Program Manager", "Executive Director" (Save as Template writes this as a list, so it must be Multiple select) |
+| Default Assignees | Link → Users, **optional** | Only used by Save as Template with "remember who was assigned" ticked |
 | Depends On | Link → Template Steps | "Confirm shipping address", "Confirm participant quantities" |
 
 ### Projects
@@ -132,6 +133,23 @@ row is silently dropped. It writes:
 
 "Program day N" is treated as N−1 calendar days after the start date. If NMU's
 program days skip weekends, this needs adjusting.
+
+## Programs vs. templates (sponsor feedback, Nov 2026)
+
+- **A program owns its tasks.** Creating a program copies every template step
+  into that program's own Task records. Admins can add, edit, remove and
+  reorder those tasks (`Order` field). That changes only that program's Task
+  rows. No template or other program record is written.
+- **Removing a task** deletes that Task record after unlinking it from tasks in
+  the same program that depended on it. Use status "Not Needed" to keep it for
+  history instead.
+- **Save as Template** creates a *new* Program Templates record plus new
+  Template Steps. It never edits the source program or its original template.
+  Deadlines become relative rules: the original rule is kept if the task's
+  date is unchanged, otherwise it's worked out from the program dates.
+  Program dates, statuses and completion dates are never copied. Notes,
+  assignments and "Not Needed" tasks are copied only if chosen.
+- The only schema addition is the optional **Default Assignees** field above.
 
 ## Design decisions
 

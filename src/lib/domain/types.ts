@@ -56,6 +56,12 @@ export interface TemplateStep {
   anchor: Anchor;
   /** One or more roles that share the task, e.g. ["Program Manager", "Executive Director"] */
   defaultOwnerRoles: string[];
+  /**
+   * Optional default people (only set when a template was saved from a program
+   * with "include assignments" ticked). Used only when nobody is picked for the
+   * step's roles.
+   */
+  defaultAssigneeIds: string[];
   dependsOnStepIds: string[];
 }
 
@@ -124,5 +130,44 @@ export interface TaskDraft {
   order: number;
   dueDate: string;
   /** Keys of other drafts this one depends on */
+  dependsOnKeys: string[];
+}
+
+/** Editable fields of a task inside one program. Editing never touches the template. */
+export interface TaskEdit {
+  title: string;
+  description: string;
+  phase: string;
+  dueDate: string | null;
+  ownerRole: string;
+  assigneeIds: string[];
+  dependsOnTaskIds: string[];
+}
+
+export interface NewTaskInput extends TaskEdit {
+  projectId: string;
+  order: number;
+}
+
+export interface NewTemplateInput {
+  name: string;
+  programType: string;
+  description: string;
+}
+
+/** A template step to be created, before it has an ID. */
+export interface StepDraft {
+  /** Temporary key (e.g. the source task ID) used to wire dependencies */
+  key: string;
+  title: string;
+  description: string;
+  order: number;
+  phase: string;
+  offsetAmount: number;
+  offsetUnit: OffsetUnit;
+  timing: Timing;
+  anchor: Anchor;
+  defaultOwnerRoles: string[];
+  defaultAssigneeIds: string[];
   dependsOnKeys: string[];
 }

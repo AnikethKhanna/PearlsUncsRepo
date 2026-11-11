@@ -8,6 +8,10 @@ import {
   TASK_STATUSES,
   type AccessLevel,
   type NewProjectInput,
+  type NewTaskInput,
+  type NewTemplateInput,
+  type StepDraft,
+  type TaskEdit,
   type ProgramTemplate,
   type Project,
   type ProjectStatus,
@@ -171,6 +175,95 @@ export class AirtableStore implements DataStore {
     return project;
   }
 
+  // ---------- Editing one program ----------
+
+  async createTask(input: NewTaskInput): Promise<Task> {
+    const [r] = await this.at.create(S.tasks.table, [
+      {
+        ...taskEditFields(input),
+        [S.tasks.fields.project]: [input.projectId],
+        [S.tasks.fields.order]: input.order,
+        [S.tasks.fields.status]: "Not Started",
+      },
+    ]);
+    return toTask(r);
+  }
+
+  async updateTaskDetails(id: string, edit: TaskEdit): Promise<Task> {
+    const [r] = await this.at.update(S.tasks.table, [{ id, fields: taskEditFields(edit) }]);
+    return toTask(r);
+  }
+
+  async reorderTasks(updates: { id: string; order: number }[]): Promise<void> {
+    if (updates.length === 0) return;
+    await this.at.update(
+      S.tasks.table,
+      updates.map((u) => ({ id: u.id, fields: { [S.tasks.fields.order]: u.order } })),
+    );
+  }
+
+  async deleteTask(id: string): Promise<void> {
+    const task = await this.getTask(id);
+    if (!task) return;
+    // Unlink it from other tasks in the same program before deleting.
+    const project = task.projectId ? await this.getProject(task.projectId) : null;
+    const siblings = project ? await this.getTasksByIds(project.taskIds.filter((t) => t !== id)) : [];
+    const dependents = siblings.filter((t) => t.dependsOnTaskIds.includes(id));
+    if (dependents.length) {
+      await this.at.update(
+        S.tasks.table,
+        dependents.map((t) => ({
+          id: t.id,
+          fields: { [S.tasks.fields.dependsOn]: t.dependsOnTaskIds.filter((d) => d !== id) },
+        })),
+      );
+    }
+    await this.at.destroy(S.tasks.table, [id]);
+  }
+
+  // ---------- Templates ----------
+
+  async createTemplate(input: NewTemplateInput, steps: StepDraft[]): Promise<ProgramTemplate> {
+    const tf = S.templates.fields;
+    const sf = S.steps.fields;
+    const [templateRecord] = await this.at.create(S.templates.table, [
+      {
+        [tf.name]: input.name,
+        [tf.programType]: input.programType || undefined,
+        [tf.description]: input.description,
+        [tf.active]: true,
+      },
+    ]);
+    const created = await this.at.create(
+      S.steps.table,
+      steps.map((d) => ({
+        [sf.title]: d.title,
+        [sf.description]: d.description,
+        [sf.template]: [templateRecord.id],
+        [sf.order]: d.order,
+        [sf.phase]: d.phase || undefined,
+        [sf.offsetAmount]: d.offsetAmount,
+        [sf.offsetUnit]: d.offsetUnit,
+        [sf.timing]: d.timing,
+        [sf.anchor]: d.anchor,
+        // Written as a list, which suits a Multiple select field (the proposed schema).
+        [sf.defaultOwnerRoles]: d.defaultOwnerRoles,
+        // Optional field: only sent when there is something to save.
+        ...(d.defaultAssigneeIds.length ? { [sf.defaultAssignees]: d.defaultAssigneeIds } : {}),
+      })),
+    );
+    const idByKey = new Map(steps.map((d, i) => [d.key, created[i].id]));
+    const depUpdates = steps
+      .map((d, i) => ({ id: created[i].id, deps: d.dependsOnKeys.map((k) => idByKey.get(k)).filter(Boolean) }))
+      .filter((u) => u.deps.length > 0)
+      .map((u) => ({ id: u.id, fields: { [sf.dependsOn]: u.deps } }));
+    if (depUpdates.length) await this.at.update(S.steps.table, depUpdates);
+
+    const template = await this.getTemplate(templateRecord.id);
+    if (!template) throw new Error("Template was created but could not be read back.");
+    return template;
+  }
+
   async updateTask(id: string, patch: { status?: TaskStatus; notes?: string }): Promise<Task> {
     const tf = S.tasks.fields;
     const fields: Record<string, unknown> = {};
@@ -182,6 +275,20 @@ export class AirtableStore implements DataStore {
     const [r] = await this.at.update(S.tasks.table, [{ id, fields }]);
     return toTask(r);
   }
+}
+
+/** Airtable fields for the editable parts of a task. Empty values clear the field. */
+function taskEditFields(edit: TaskEdit): Record<string, unknown> {
+  const f = S.tasks.fields;
+  return {
+    [f.title]: edit.title,
+    [f.description]: edit.description,
+    [f.phase]: edit.phase || null,
+    [f.dueDate]: edit.dueDate,
+    [f.ownerRole]: edit.ownerRole,
+    [f.assignees]: edit.assigneeIds,
+    [f.dependsOn]: edit.dependsOnTaskIds,
+  };
 }
 
 // ---------- Record → domain mapping ----------
@@ -264,6 +371,7 @@ function toStep(r: AirtableRecord): TemplateStep {
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean),
+    defaultAssigneeIds: links(r, f.defaultAssignees),
     dependsOnStepIds: links(r, f.dependsOn),
   };
 }
