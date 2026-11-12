@@ -121,6 +121,10 @@ tests that replay a Staff or Partner session cookie against Admin forms.
 remove and reorder tasks per program; Save as Template; Templates pages. In-app
 editing of template steps is still to do; edit them in Airtable for now.
 
+**Sponsor feedback (Nov 2026):** ✅ dashboard redesign: My Tasks grouped into
+collapsible urgency sections, filters and sorting kept in the URL (bookmarkable),
+an admin "Everyone's tasks" view. The logic is in `src/lib/domain/task-dashboard.ts`.
+
 **After the demo (Phase 4–5):** task detail page with notes and Drive links,
 add/reassign tasks, activity history table, "program date changed → review
 proposed new deadlines" screen (shows old vs. new date per task and nothing

@@ -19,7 +19,12 @@ Airtable as the data store, hosted on Vercel.
 - The project page shows tasks with owner, due date, and **Blocked** and
   **Overdue** indicators. Staff change status inline, and the change
   persists after a refresh.
-- **My Tasks** (each person's tasks across programs) and **All Projects**.
+- **My Tasks dashboard:** summary tiles (click to filter) and collapsible
+  sections (Overdue, Due in the next 7 days, In progress, Upcoming, Completed).
+  You can search, filter by program, status, due date and assignee (admins),
+  and sort. Active filters show as removable chips, with **Reset filters**.
+  Admins can switch to **Everyone's tasks**; Staff only ever see their own.
+- **All Projects**.
 - **Flexible programs:** admins can add, edit, remove and reorder tasks in one
   program without changing its template or other programs. **Save as
   Template** turns a program into a new reusable template. The **Templates**
