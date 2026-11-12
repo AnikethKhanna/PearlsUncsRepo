@@ -2,28 +2,29 @@
  * Pure helpers for editing ONE program's tasks (add, edit, remove, reorder).
  * Nothing here touches templates: a program's tasks are its own copies.
  */
+import { SYSTEM_PHASES } from "./workflow";
 import type { Task } from "./types";
 
-export const PHASE_ORDER = ["Pre-launch", "During program", "Post-program"];
+export const PHASE_ORDER: readonly string[] = SYSTEM_PHASES;
 
-function phaseRank(phase: string): number {
-  const i = PHASE_ORDER.indexOf(phase);
-  return i === -1 ? PHASE_ORDER.length : i;
+function phaseRank(phase: string, order: readonly string[] = PHASE_ORDER): number {
+  const i = order.indexOf(phase);
+  return i === -1 ? order.length : i;
 }
 
 /** The program's own order: by phase, then the editable Order field, then due date. */
-export function sortForDisplay<T extends Pick<Task, "phase" | "order" | "dueDate">>(tasks: T[]): T[] {
+export function sortForDisplay<T extends Pick<Task, "phase" | "order" | "dueDate">>(tasks: T[], phaseOrder: readonly string[] = PHASE_ORDER): T[] {
   return [...tasks].sort(
     (a, b) =>
-      phaseRank(a.phase || "Other") - phaseRank(b.phase || "Other") ||
+      phaseRank(a.phase || "Other", phaseOrder) - phaseRank(b.phase || "Other", phaseOrder) ||
       a.order - b.order ||
       (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"),
   );
 }
 
 /** Phases present in a task list, in display order. */
-export function phasesOf(tasks: Pick<Task, "phase">[]): string[] {
-  return [...new Set(tasks.map((t) => t.phase || "Other"))].sort((a, b) => phaseRank(a) - phaseRank(b));
+export function phasesOf(tasks: Pick<Task, "phase">[], phaseOrder: readonly string[] = PHASE_ORDER): string[] {
+  return [...new Set(tasks.map((t) => t.phase || "Other"))].sort((a, b) => phaseRank(a, phaseOrder) - phaseRank(b, phaseOrder));
 }
 
 /** Order value for a task added at the end of the program. */

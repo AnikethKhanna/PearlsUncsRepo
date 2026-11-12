@@ -49,6 +49,12 @@ Airtable as the data store, hosted on Vercel.
 See [docs/architecture.md](docs/architecture.md) for the full plan and what's
 next.
 
+## Sponsor feedback: exports and configurable workflows
+
+- **Export to Google Sheets** on My Tasks preserves the current scope, filters and sorting. It creates a new formatted sheet through Google OAuth with per-file access; CSV is also available. [Google setup and behavior](docs/google-sheets-export.md).
+- **Workflow Settings** lets Admins add/archive/order phases and manage deadline presets used by Add/Edit Task. Airtable persistence uses one additive optional table; existing task records and template schedules are preserved. [Setup and constraints](docs/workflow-settings.md).
+- Verified NMU logo/site colors, clearer navigation, readable controls and keyboard focus. [Asset provenance](docs/branding.md).
+
 ## Local setup
 
 Requires Node.js 20.9 or newer (22 recommended).

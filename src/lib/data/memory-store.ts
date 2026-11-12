@@ -1,3 +1,4 @@
+import { validateWorkflow, type WorkflowConfig } from "@/lib/domain/workflow";
 /**
  * ⚠️ DEVELOPMENT PLACEHOLDER — NOT PERSISTENT.
  *
@@ -51,6 +52,9 @@ function freshState(): State {
 
 export class MemoryStore implements DataStore {
   readonly kind = "memory" as const;
+  private workflowConfig: WorkflowConfig | null = null;
+  async getWorkflowConfig() { return structuredClone(this.workflowConfig); }
+  async saveWorkflowConfig(config: WorkflowConfig) { this.workflowConfig = validateWorkflow(config); }
   constructor(
     private readonly s: State = freshState(),
     seedProjects = true,

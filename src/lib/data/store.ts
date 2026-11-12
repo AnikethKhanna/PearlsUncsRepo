@@ -1,3 +1,4 @@
+import type { WorkflowConfig } from "@/lib/domain/workflow";
 import type {
   CalendarConnection,
   NewProjectInput,
@@ -26,6 +27,9 @@ import type {
  * (see src/lib/auth/permissions.ts).
  */
 export interface DataStore {
+  getWorkflowConfig(): Promise<WorkflowConfig | null>;
+  saveWorkflowConfig(config: WorkflowConfig): Promise<void>;
+
   readonly kind: "airtable" | "memory";
 
   getUserByEmail(email: string): Promise<User | null>;

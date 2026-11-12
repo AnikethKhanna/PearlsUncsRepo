@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { AuthorizationError, requirePermission } from "@/lib/auth/current-user";
 import { canViewProject } from "@/lib/auth/permissions";
 import { queueCalendarSync } from "@/lib/calendar-sync";
+import { loadWorkflowSettings } from "@/lib/data/workflow-settings";
+import { canChoosePhase } from "@/lib/domain/workflow";
 import { getStore } from "@/lib/data";
 import { isIsoDate } from "@/lib/domain/dates";
 import { moveTask, nextOrder, wouldCreateCycle } from "@/lib/domain/program-edit";
@@ -53,6 +55,8 @@ export async function saveTask(_prev: TaskFormState, formData: FormData): Promis
     if (!title) fieldErrors.title = "Give the task a title.";
     else if (title.length > 200) fieldErrors.title = "Keep the title under 200 characters.";
     if (dueRaw && !isIsoDate(dueRaw)) fieldErrors.dueDate = "Enter a valid date.";
+    const { config: workflow } = await loadWorkflowSettings(store);
+    if (!canChoosePhase(workflow, phase, existing?.phase)) fieldErrors.phase = "Choose an active phase. Administrators can add phases in Workflow settings.";
     if (phase.length > 50) fieldErrors.phase = "Keep the phase under 50 characters.";
 
     // People must be active staff; prerequisites must be other tasks in THIS program.

@@ -16,7 +16,7 @@ export const CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
 ] as const;
 
-type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 /** Google said the grant is gone (revoked, expired, password change…): the user must reconnect. */
 export class GoogleAuthRevokedError extends Error {
@@ -67,8 +67,8 @@ export class GoogleOAuth {
   private readonly tokenUrl: string;
   private readonly revokeUrl: string;
 
-  async exchangeCode(code: string, redirectUri: string): Promise<TokenResponse> {
-    return this.token({ code, redirect_uri: redirectUri, grant_type: "authorization_code" });
+  async exchangeCode(code: string, redirectUri: string, codeVerifier?: string): Promise<TokenResponse> {
+    return this.token({ code, redirect_uri: redirectUri, grant_type: "authorization_code", ...(codeVerifier ? { code_verifier: codeVerifier } : {}) });
   }
 
   /** New short-lived access token. Throws GoogleAuthRevokedError if the refresh token no longer works. */

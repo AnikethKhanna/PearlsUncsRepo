@@ -18,6 +18,7 @@ import { getStore } from "@/lib/data";
 import { formatDisplayDate, today } from "@/lib/domain/dates";
 import { isComplete, isOverdue, openPrerequisites, projectProgress } from "@/lib/domain/task-state";
 import { TaskStatusForm } from "@/components/task-status-form";
+import { loadWorkflowSettings } from "@/lib/data/workflow-settings";
 import { phasesOf, sortForDisplay } from "@/lib/domain/program-edit";
 import { moveTaskAction } from "./tasks/actions";
 
@@ -43,8 +44,10 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   const now = today();
   const progress = projectProgress(tasks, now);
   // The program's own order (editable), grouped by phase.
-  const sorted = sortForDisplay(tasks);
-  const phases = phasesOf(sorted);
+  const { config: workflow } = await loadWorkflowSettings(getStore());
+  const phaseOrder = workflow.phases.map((p) => p.name);
+  const sorted = sortForDisplay(tasks, phaseOrder);
+  const phases = phasesOf(sorted, phaseOrder);
 
   return (
     <>

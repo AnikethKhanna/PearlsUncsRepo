@@ -14,6 +14,8 @@
  * Keep this file free of imports: scripts/inspect-airtable.mjs loads it directly.
  */
 export const AIRTABLE_SCHEMA = {
+  /** Optional additive table. One row named workflow; Value contains versioned JSON. */
+  workflowSettings: { table: "Workflow Settings", fields: { name: "Name", value: "Value" } },
   users: {
     table: "Users",
     fields: {

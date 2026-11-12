@@ -81,9 +81,12 @@ export default async function MyTasksPage({ searchParams }: PageProps<"/my-tasks
         title={f.scope === "all" ? "Everyone's tasks" : "My Tasks"}
         description={`Signed in as ${user.name} (${user.accessLevel}): ${ACCESS_SUMMARY[user.accessLevel]}`}
         actions={
+          <>
+          {can(user, "task.export") && <Link href={`/my-tasks/export${filtersToQuery(f)}`} className={buttonSecondary}>Export to Google Sheets</Link>}
           <Link href={calendarHref(f, cal, now)} className={buttonSecondary}>
             Calendar view
           </Link>
+          </>
         }
       />
 

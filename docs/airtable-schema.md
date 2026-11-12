@@ -168,3 +168,7 @@ program days skip weekends, this needs adjusting.
 One row per person who connected Google Calendar. The fields are listed in
 [google-calendar.md](google-calendar.md#2-airtable-add-the-calendar-connections-table).
 Refresh tokens are stored encrypted by the app.
+
+## Optional Workflow Settings table
+
+See [workflow-settings.md](workflow-settings.md) for the additive setup: `Name` (primary, single-line text) and `Value` (plain long text), with one row named `workflow`. Stores versioned phase/deadline-preset configuration. The app uses defaults if this optional table is missing; it does not mutate task/template records to migrate settings.

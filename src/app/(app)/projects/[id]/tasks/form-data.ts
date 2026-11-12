@@ -1,12 +1,14 @@
 import "server-only";
 import { getStore } from "@/lib/data";
-import { phasesOf, sortForDisplay } from "@/lib/domain/program-edit";
+import { loadWorkflowSettings } from "@/lib/data/workflow-settings";
+import { phaseChoices, presetDate } from "@/lib/domain/workflow";
+import { sortForDisplay } from "@/lib/domain/program-edit";
 import type { Project, Task } from "@/lib/domain/types";
 import type { TaskFormProps } from "./task-form";
 
 /** Everything the task form needs, limited to what the browser should see. */
 export async function taskFormProps(project: Project, tasks: Task[], editing?: Task): Promise<TaskFormProps> {
-  const users = await getStore().listUsers();
+  const [users, { config }] = await Promise.all([getStore().listUsers(), loadWorkflowSettings(getStore())]);
   return {
     projectId: project.id,
     templateName: project.templateName,
@@ -20,7 +22,8 @@ export async function taskFormProps(project: Project, tasks: Task[], editing?: T
       assigneeIds: editing.assigneeIds,
       dependsOnTaskIds: editing.dependsOnTaskIds,
     },
-    phases: phasesOf(tasks),
+    phases: phaseChoices(config, editing?.phase),
+    deadlinePresets: config.deadlinePresets.map((p) => ({ id: p.id, label: p.label, date: presetDate(p, project.startDate, project.endDate) })),
     staff: users
       .filter((u) => u.active && u.accessLevel !== "Partner")
       .map((u) => ({ id: u.id, name: u.name, jobTitle: u.jobTitle })),

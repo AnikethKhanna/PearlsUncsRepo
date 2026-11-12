@@ -1,3 +1,4 @@
+import { validateWorkflow, WorkflowValidationError, type WorkflowConfig } from "@/lib/domain/workflow";
 import { AirtableClient, AirtableError, formulaString, type AirtableRecord } from "@/lib/airtable/client";
 import { AIRTABLE_SCHEMA as S } from "@/lib/airtable/schema";
 import { today } from "@/lib/domain/dates";
@@ -34,6 +35,32 @@ export class AirtableStore implements DataStore {
   readonly kind = "airtable" as const;
 
   constructor(private readonly at: AirtableClient) {}
+
+  private async workflowRecord() {
+    try {
+      const spec = S.workflowSettings;
+      const records = await this.at.list(spec.table, { filterByFormula: `{${spec.fields.name}}="workflow"`, maxRecords: 2 });
+      if (records.length > 1) throw new WorkflowValidationError("Duplicate workflow settings rows need repair.");
+      return records[0] ?? null;
+    } catch (error) {
+      if (error instanceof AirtableError && [403, 404, 422].includes(error.status))
+        throw new StorageNotReadyError("Workflow Settings table is missing or inaccessible.");
+      throw error;
+    }
+  }
+  async getWorkflowConfig(): Promise<WorkflowConfig | null> {
+    const record = await this.workflowRecord();
+    if (!record) return null;
+    try { return validateWorkflow(JSON.parse(String(record.fields[S.workflowSettings.fields.value] ?? ""))); }
+    catch { throw new WorkflowValidationError("Stored workflow settings are invalid."); }
+  }
+  async saveWorkflowConfig(config: WorkflowConfig): Promise<void> {
+    const record = await this.workflowRecord();
+    const spec = S.workflowSettings;
+    const fields = { [spec.fields.name]: "workflow", [spec.fields.value]: JSON.stringify(validateWorkflow(config)) };
+    if (record) await this.at.update(spec.table, [{ id: record.id, fields }]);
+    else await this.at.create(spec.table, [fields]);
+  }
 
   // ---------- Users ----------
 

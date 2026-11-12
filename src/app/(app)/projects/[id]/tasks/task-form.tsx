@@ -19,18 +19,20 @@ export interface TaskFormProps {
     dependsOnTaskIds: string[];
   };
   phases: string[];
+  deadlinePresets: { id: string; label: string; date: string | null }[];
   staff: { id: string; name: string; jobTitle: string }[];
   /** Other tasks in this program that can be prerequisites */
   otherTasks: { id: string; title: string; phase: string }[];
 }
 
 /** Add or edit one task in ONE program. The template is never changed. */
-export function TaskForm({ projectId, templateName, task, phases, staff, otherTasks }: TaskFormProps) {
+export function TaskForm({ projectId, templateName, task, phases, deadlinePresets, staff, otherTasks }: TaskFormProps) {
   const [state, action, pending] = useActionState<TaskFormState, FormData>(saveTask, {});
   // Controlled fields so values survive a failed save.
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
   const [phase, setPhase] = useState(task?.phase ?? phases[0] ?? "Pre-launch");
+  const [presetId, setPresetId] = useState("");
   const [dueDate, setDueDate] = useState(task?.dueDate ?? "");
   const [ownerRole, setOwnerRole] = useState(task?.ownerRole ?? "");
   const [assignees, setAssignees] = useState(new Set(task?.assigneeIds ?? []));
@@ -43,7 +45,7 @@ export function TaskForm({ projectId, templateName, task, phases, staff, otherTa
     else next.add(id);
     return next;
   };
-  const phaseOptions = [...new Set([...phases, "Pre-launch", "During program", "Post-program"])];
+  const phaseOptions = phases;
   const visibleDeps = otherTasks.filter(
     (t) => deps.has(t.id) || t.title.toLowerCase().includes(depFilter.trim().toLowerCase()),
   );
@@ -93,7 +95,7 @@ export function TaskForm({ projectId, templateName, task, phases, staff, otherTa
               >
                 {phaseOptions.map((p) => (
                   <option key={p} value={p}>
-                    {p}
+                    {p || "No phase (existing)"}
                   </option>
                 ))}
               </select>
@@ -119,6 +121,17 @@ export function TaskForm({ projectId, templateName, task, phases, staff, otherTa
               />
             </Field>
           </div>
+          {deadlinePresets.length > 0 && <div className="rounded-lg bg-brand-50 p-4">
+            <label htmlFor="deadline-preset" className={labelClass}>Use a deadline preset (optional)</label>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <select id="deadline-preset" value={presetId} onChange={(e) => setPresetId(e.target.value)} className={`${inputClass} sm:max-w-md`} aria-describedby="preset-help">
+                <option value="">Choose a preset…</option>
+                {deadlinePresets.map((p) => <option key={p.id} value={p.id} disabled={!p.date}>{p.label}{p.date ? ` — ${p.date}` : " — program date needed"}</option>)}
+              </select>
+              <button type="button" className={buttonSecondary} disabled={!deadlinePresets.find((p) => p.id === presetId)?.date} onClick={() => { const date = deadlinePresets.find((p) => p.id === presetId)?.date; if (date) setDueDate(date); }}>Apply date</button>
+            </div>
+            <p id="preset-help" className="mt-2 text-sm text-slate-600">Calculated from this program’s dates. You can adjust the date before saving.</p>
+          </div>}
         </Card>
 
         <Card className="p-6">

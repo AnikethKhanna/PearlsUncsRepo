@@ -73,7 +73,7 @@ export function NewProjectForm({ sites, templates, staff, initialTemplateId = ""
           />
         </Field>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field id="siteId" label="Site / partner" error={fe.siteId}>
+          <Field id="siteId" label="Site / partner and location" error={fe.siteId}>
             <select
               id="siteId"
               name="siteId"
@@ -92,6 +92,7 @@ export function NewProjectForm({ sites, templates, staff, initialTemplateId = ""
                 </option>
               ))}
             </select>
+            {siteId && <p className="mt-2 text-sm text-slate-600">City / location: {sites.find((s) => s.id === siteId)?.location || "Not recorded for this site"}</p>}
           </Field>
           <Field id="templateId" label="Program template" error={fe.templateId}>
             <select
