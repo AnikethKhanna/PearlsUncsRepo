@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Alert, Card, buttonPrimary } from "@/components/ui";
+import { Alert, Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { configProblems, devSignInBlocker, getGoogleOAuthConfig } from "@/lib/config";
+import { homePathFor } from "@/lib/auth/permissions";
+import { configProblems, devSignInBlocker } from "@/lib/config";
 import { getStore } from "@/lib/data";
+import { getFirebaseWebConfig } from "@/lib/firebase/config";
+import { isFirebaseAdminConfigured } from "@/lib/firebase/server";
 import { DevSignInForm, type SampleAccount } from "./dev-sign-in-form";
+import { FirebaseSignIn } from "./firebase-sign-in";
 
 const SAMPLE_DESCRIPTIONS: Record<string, string> = {
   Admin: "Sees everything; can create projects",
@@ -14,18 +18,29 @@ const SAMPLE_DESCRIPTIONS: Record<string, string> = {
 
 export const metadata: Metadata = { title: "Sign in" };
 
-const ERRORS: Record<string, string> = {
-  "not-registered": "That Google account isn't registered for NMU Onboarding. Ask an administrator to add your email.",
-  "sign-in-failed": "Sign-in didn't complete. Please try again.",
-  "google-not-configured": "Google sign-in hasn't been set up yet (see the README).",
-};
+/** What's missing for Firebase sign-in (Google + email/password), in plain words. */
+function firebaseSetupGaps(): string[] {
+  const gaps: string[] = [];
+  if (!getFirebaseWebConfig()) gaps.push("the public web config (NEXT_PUBLIC_FIREBASE_*)");
+  try {
+    if (!isFirebaseAdminConfigured()) gaps.push("the server's service account (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)");
+  } catch (err) {
+    gaps.push(err instanceof Error ? err.message : "a valid server configuration");
+  }
+  return gaps;
+}
 
-export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
+export default async function SignInPage() {
   const isLocalDev = process.env.NODE_ENV === "development";
   const problems = configProblems();
-  if (problems.length === 0 && (await getCurrentUser())) redirect("/my-tasks");
-  const { error } = await searchParams;
-  const googleEnabled = !!getGoogleOAuthConfig();
+  if (problems.length === 0) {
+    const user = await getCurrentUser();
+    if (user) redirect(homePathFor(user));
+  }
+  const firebaseGaps = firebaseSetupGaps();
+  // Google and email/password both need the browser config AND the server credentials.
+  const firebaseEnabled = problems.length === 0 && firebaseGaps.length === 0;
+  const firebasePartlyConfigured = firebaseGaps.length === 1;
   const devBlocker = devSignInBlocker();
   const devEnabled = problems.length === 0 && devBlocker === null;
 
@@ -48,17 +63,23 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-sm p-8">
+    <main className="flex flex-1 items-center justify-center px-4 py-8 sm:py-12">
+      <Card className="w-full max-w-sm p-6 sm:p-8">
         <h1 className="text-xl font-bold text-slate-900">NMU Onboarding</h1>
-        <p className="mt-1 text-sm text-slate-600">Sign in with your No More Under account.</p>
+        <p className="mt-1 text-sm text-slate-600">
+          Sign in with your No More Under account. Access is for NMU staff an administrator has added.
+        </p>
         <div className="mt-6 space-y-6">
-          {typeof error === "string" && ERRORS[error] && <Alert tone="error">{ERRORS[error]}</Alert>}
-          {googleEnabled && (
-            // Plain link (not <Link>): this leaves the app for Google's sign-in page.
-            <a href="/auth/google" className={`${buttonPrimary} w-full`}>
-              Sign in with Google
-            </a>
+          {firebaseEnabled && <FirebaseSignIn />}
+          {problems.length === 0 && firebasePartlyConfigured && (
+            <Alert tone="warning">
+              <p className="font-semibold">Google and email sign-in are unavailable right now.</p>
+              {isLocalDev ? (
+                <p className="mt-1">Firebase is only partly configured. Missing: {firebaseGaps.join("; ")}. See docs/firebase.md.</p>
+              ) : (
+                <p className="mt-1">Please contact an administrator.</p>
+              )}
+            </Alert>
           )}
           {devEnabled && <DevSignInForm sampleAccounts={sampleAccounts} />}
           {problems.length > 0 && (
@@ -67,7 +88,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
               {isLocalDev && <SetupHelp />}
             </Alert>
           )}
-          {problems.length === 0 && !googleEnabled && !devEnabled && (
+          {problems.length === 0 && !firebaseEnabled && !firebasePartlyConfigured && !devEnabled && (
             <Alert tone="warning">
               <p className="font-semibold">No sign-in method is configured.</p>
               {isLocalDev ? (
@@ -76,7 +97,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
                   <SetupHelp />
                 </>
               ) : (
-                <p className="mt-1">Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see the README).</p>
+                <p className="mt-1">Set up Firebase Authentication (see docs/firebase.md).</p>
               )}
             </Alert>
           )}

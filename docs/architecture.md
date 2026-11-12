@@ -5,25 +5,30 @@
 NMU Onboarding is a small Next.js web app. It replaces the per-program Google
 Sheets with **templates** that generate a dated, assigned, dependency-aware
 task list for each **project**, meaning one program launch at one site.
-Staff sign in with Google. The server checks their access level and reads and
-writes Airtable, which stays the single source of truth. Staff never touch
+Staff sign in with "Continue with Google" or with email and password, both
+through Firebase Authentication. The server checks their access level and reads and writes
+Airtable, which stays the single source of truth. Cloud Firestore is
+prepared as its replacement (see [firestore-migration.md](firestore-migration.md)). Staff never touch
 Airtable directly and don't need Airtable seats.
 
 ## Smallest viable architecture
 
 ```
 Browser ──HTTPS──▶ Next.js on Vercel (server components + server actions)
-                     │  • auth: Google sign-in → signed httpOnly cookie
+                     │  • auth: Firebase (Google popup or email/password) → signed httpOnly cookie
                      │  • authorization: src/lib/auth/permissions.ts (every page/action)
                      │  • business logic: src/lib/domain/* (pure, unit-tested)
                      │  • data access: src/lib/data/* → AirtableClient
                      ▼
                   Airtable REST API (token is server-side env var only)
+                  — or, after migration, Cloud Firestore via firebase-admin
 ```
 
-- **There is no other database, ORM or backend service.** The Airtable client
-  is about 150 lines with no SDK. Runtime dependencies are `next`, `react`
-  and `server-only`.
+- **One database at a time.** `DATA_BACKEND` selects Airtable (default),
+  Firestore or the in-memory placeholder. The app never writes to two. The
+  Airtable client is about 150 lines with no SDK. Runtime dependencies are
+  `next`, `react`, `server-only`, `firebase` (browser Auth) and
+  `firebase-admin` (server).
 - **The Airtable token is only read in `src/lib/config.ts`**, which is marked
   `server-only`. If any browser code imports it, the build fails. The
   production build was checked: a sentinel token value did not appear in any
@@ -37,7 +42,7 @@ Browser ──HTTPS──▶ Next.js on Vercel (server components + server actio
 src/
   app/
     sign-in/                 sign-in page + dev sign-in action
-    auth/google/             Google OAuth start + callback (route handlers)
+    auth/firebase/session/   Firebase ID token → app session cookie (every sign-in method)
     (app)/layout.tsx         signed-in shell (nav, placeholder banner)
     (app)/projects/          list, new (form + preview), [id] detail, actions.ts
   components/ui.tsx          shared buttons, badges, cards
@@ -48,9 +53,15 @@ src/
     data/store.ts            DataStore interface
     data/airtable-store.ts   Airtable implementation
     data/memory-store.ts     DEVELOPMENT PLACEHOLDER (sample data, not persistent)
+    data/firestore-store.ts  Firestore implementation (DATA_BACKEND=firestore)
+    firebase/                web config, browser Auth, Admin SDK
+    migration/               Airtable → Firestore plan + verify (pure)
     domain/                  types, date rules, task generation, blocked/overdue
     auth/                    session tokens, permissions, current user
 scripts/inspect-airtable.mjs read-only schema inspection + mapping check
+scripts/migrate-airtable-to-firestore.ts  dry-run / apply / verify / rollback
+src/proxy.ts                 early redirect to /sign-in (the real check is server-side)
+firestore.rules              Firestore Security Rules (mirror permissions.ts)
 tests/                       Vitest unit + Airtable-store tests (fake Airtable API)
 docs/                        this documentation
 ```
@@ -71,8 +82,8 @@ to maintain.
    separate values for each if possible.
 3. Leave `ALLOW_DEV_SIGN_IN` unset in Production. The code refuses it there
    anyway.
-4. Add `https://<your-domain>/auth/google/callback` as an authorized redirect
-   URI on the Google OAuth client.
+4. In Firebase, enable the Google provider and add the Vercel domain to
+   Authentication → Authorized domains (see [firebase.md](firebase.md)).
 
 > Vercel's free Hobby plan is for non-commercial use. Confirm with NMU whether
 > its use qualifies, or use a Pro or nonprofit plan on NMU's own account so
@@ -85,10 +96,10 @@ to maintain.
 | `AIRTABLE_TOKEN` | yes | Personal access token. Scopes: `data.records:read`, `data.records:write`, `schema.bases:read`. Access: the NMU base only. Create it under an NMU-owned account, not a student's. |
 | `AIRTABLE_BASE_ID` | yes | `app…` ID of the base |
 | `SESSION_SECRET` | yes | 32+ random characters, used to sign session cookies |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | for real sign-in | Google OAuth web client |
-| `GOOGLE_ALLOWED_DOMAIN` | optional | Restrict sign-in to NMU's Workspace domain |
-| `APP_URL` | recommended | Public base URL, used for the OAuth redirect |
-| `DATA_BACKEND` | no | `airtable` (default) or `memory` (dev placeholder, refused in production) |
+| `APP_URL` | recommended | Public base URL, used to check that sign-in requests come from the app |
+| `DATA_BACKEND` | no | `airtable` (default), `firestore` (after migration) or `memory` (dev placeholder, refused in production) |
+| `NEXT_PUBLIC_FIREBASE_*` | for sign-in | Public Firebase web config. See [firebase.md](firebase.md). |
+| `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` | for sign-in and Firestore | Service account for `firebase-admin`. **Secret.** |
 | `ALLOW_DEV_SIGN_IN` | no | `true` enables email-only sign-in **locally**. Ignored in production. |
 
 Never paste these values into chat, issues or commits. They belong only in
@@ -105,6 +116,9 @@ Never paste these values into chat, issues or commits. They belong only in
 These checks run on the server for every page and action. An inaccessible
 project returns 404, so project IDs can't be probed. Verified with browser
 tests that replay a Staff or Partner session cookie against Admin forms.
+`firestore.rules` enforces the same levels for any direct Firestore access
+(`npm run test:emulators`). New sign-ins never get admin access: Firebase
+accounts only map to existing, active Users records by verified email.
 
 ## Ordered development plan
 
@@ -113,7 +127,7 @@ tests that replay a Staff or Partner session cookie against Admin forms.
 1. ✅ Foundation: Next.js app, server-only Airtable client, schema mapping, inspection script, env setup.
 2. ✅ Phase 2 workflow: create project → generate tasks → save → open → change status → persists after refresh.
 3. ⏳ Connect to the real base: run `airtable:inspect`, adjust `schema.ts`, enter 2 real templates. **(team, needs credentials)**
-4. ⏳ Deploy to Vercel with Google sign-in and verify reads and writes against Airtable on the deployed URL.
+4. ⏳ Deploy to Vercel with Firebase sign-in (Google + email) and verify reads and writes against Airtable on the deployed URL.
 5. ✅ My Tasks dashboard (Feature B): overdue / next 7 days / later, status and project filters, inline status updates.
 6. ⏳ All Projects (Feature C): add upcoming deadlines and filters to the existing list.
 

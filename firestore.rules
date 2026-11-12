@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// Firestore Security Rules for NMU Onboarding.
+//
+// The app itself reads and writes Firestore ONLY from the server, through the
+// Admin SDK (which bypasses these rules) after checking
+// src/lib/auth/permissions.ts. These rules are the second line of defence:
+// they decide what a signed-in browser could do if it talked to Firestore
+// directly, and they mirror the same access levels.
+//
+// Identity: the server sets the custom claim `appUserId` (the Users record ID)
+// after matching a VERIFIED email to an active user. The access level is read
+// live from that user's document, never from the token, so role changes and
+// deactivation apply immediately. Nobody can write to /users from a client,
+// so nobody can grant themselves Admin.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function myId() {
+      return request.auth.token.appUserId;
+    }
+    function me() {
+      return get(/databases/$(database)/documents/users/$(myId())).data;
+    }
+    function isActiveUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && myId() is string
+        && me().active == true
+        // the claim must still match the account's email
+        && me().email == request.auth.token.email.lower();
+    }
+    function isAdmin() {
+      return isActiveUser() && me().accessLevel == 'Admin';
+    }
+    function isStaff() {
+      return isActiveUser() && me().accessLevel == 'Staff';
+    }
+    function validTaskStatus(data) {
+      return data.status in ['Not Started', 'In Progress', 'Done', 'Not Needed'];
+    }
+    function validProjectStatus(data) {
+      return data.status in ['Setting Up', 'Planning', 'Active', 'Completed', 'Cancelled'];
+    }
+
+    // Users: you may read your own record; admins may read all.
+    // Writes are server-only (the Admin SDK), so access levels can't be self-assigned.
+    match /users/{userId} {
+      allow read: if isAdmin() || (isActiveUser() && userId == myId());
+      allow write: if false;
+    }
+
+    // Reference data managed by admins.
+    match /sites/{siteId} {
+      allow read, write: if isAdmin();
+    }
+    match /templates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+    match /templateSteps/{stepId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Projects: admins manage all; staff may read projects where they have a task.
+    match /projects/{projectId} {
+      allow read: if isAdmin() || (isStaff() && myId() in resource.data.assigneeUserIds);
+      allow create, update: if isAdmin() && validProjectStatus(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Tasks: admins manage all (including assignments); staff may read their own
+    // tasks and change ONLY the status of tasks assigned to them.
+    match /tasks/{taskId} {
+      allow read: if isAdmin() || (isStaff() && myId() in resource.data.assigneeIds);
+      allow create: if isAdmin() && validTaskStatus(request.resource.data);
+      allow update: if validTaskStatus(request.resource.data) && (
+        isAdmin() || (
+          isStaff()
+          && myId() in resource.data.assigneeIds
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt', 'updatedAt'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

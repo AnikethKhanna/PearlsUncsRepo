@@ -6,6 +6,9 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+/** Name of the app's session cookie (shared with src/proxy.ts). */
+export const SESSION_COOKIE = "nmu_session";
+
 export interface SessionPayload {
   uid: string;
   /** Expiry, seconds since epoch */

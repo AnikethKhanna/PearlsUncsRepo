@@ -60,6 +60,14 @@ export function canViewTask(user: Actor | null, project: ProjectRef, task: Pick<
   return can(user, "task.viewAll") || isAssignee(user, task);
 }
 
+/**
+ * Where someone lands after signing in, identical for every sign-in method:
+ * admins get the All Projects overview, everyone else their own task list.
+ */
+export function homePathFor(user: Actor | null): "/projects" | "/my-tasks" {
+  return can(user, "project.viewAll") ? "/projects" : "/my-tasks";
+}
+
 export function canUpdateTask(user: Actor | null, project: ProjectRef, task: Pick<Task, "assigneeIds">): boolean {
   if (!user || !canViewProject(user, project)) return false;
   if (can(user, "task.updateAny")) return true;

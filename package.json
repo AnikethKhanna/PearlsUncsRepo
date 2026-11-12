@@ -10,9 +10,15 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "airtable:inspect": "node --no-warnings --env-file-if-exists=.env.local scripts/inspect-airtable.mjs",
-    "sample:import": "node --no-warnings scripts/import-sample-template.mjs"
+    "sample:import": "node --no-warnings scripts/import-sample-template.mjs",
+    "test:emulators": "firebase emulators:exec --only auth,firestore --project demo-nmu-onboarding \"vitest run --config vitest.emulator.config.ts\"",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-nmu-onboarding",
+    "migrate:firestore": "vite-node --config scripts/vite-node.config.ts scripts/migrate-airtable-to-firestore.ts --",
+    "firebase:deploy-rules": "firebase deploy --only firestore:rules,firestore:indexes"
   },
   "dependencies": {
+    "firebase": "13.1.0",
+    "firebase-admin": "14.5.0",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -25,8 +31,13 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
+    "firebase-tools": "15.34.2",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite-node": "3.2.4",
     "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

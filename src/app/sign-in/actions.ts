@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { endSession, startSession } from "@/lib/auth/current-user";
+import { homePathFor } from "@/lib/auth/permissions";
 import { isDevSignInEnabled } from "@/lib/config";
 import { getStore } from "@/lib/data";
 
@@ -10,7 +11,7 @@ export interface SignInState {
 }
 
 /**
- * Email-only sign-in for LOCAL DEVELOPMENT and demos without Google OAuth.
+ * Email-only sign-in for LOCAL DEVELOPMENT and demos without Firebase.
  * Disabled unless ALLOW_DEV_SIGN_IN=true, and always disabled in production
  * (enforced here on the server, not just by hiding the form).
  */
@@ -21,7 +22,7 @@ export async function devSignIn(_prev: SignInState, formData: FormData): Promise
   const user = await getStore().getUserByEmail(email);
   if (!user || !user.active) return { error: "No active NMU account uses that email. Ask an administrator to add you." };
   await startSession(user.id);
-  redirect("/my-tasks");
+  redirect(homePathFor(user));
 }
 
 export async function signOut() {

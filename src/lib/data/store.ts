@@ -13,7 +13,9 @@ import type {
 /**
  * Everything the app needs from persistent storage.
  *
- * The production implementation is AirtableStore. MemoryStore is a
+ * The production implementation is AirtableStore. FirestoreStore is the
+ * planned replacement (DATA_BACKEND=firestore, see docs/firestore-migration.md);
+ * only one backend is ever active, so data is never written to both. MemoryStore is a
  * DEVELOPMENT PLACEHOLDER only (data disappears on restart) and is refused
  * in production deployments.
  *
@@ -21,7 +23,7 @@ import type {
  * (see src/lib/auth/permissions.ts).
  */
 export interface DataStore {
-  readonly kind: "airtable" | "memory";
+  readonly kind: "airtable" | "memory" | "firestore";
 
   getUserByEmail(email: string): Promise<User | null>;
   getUser(id: string): Promise<User | null>;

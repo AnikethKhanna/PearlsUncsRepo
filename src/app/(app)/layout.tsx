@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { signOut } from "@/app/sign-in/actions";
-import { can } from "@/lib/auth/permissions";
+import { can, homePathFor } from "@/lib/auth/permissions";
 import { requireUser } from "@/lib/auth/current-user";
 import { getStore } from "@/lib/data";
 
@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       )}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <Link href="/my-tasks" className="text-lg font-bold text-brand-700">
+          <Link href={homePathFor(user)} className="text-lg font-bold text-brand-700">
             NMU Onboarding
           </Link>
           <nav aria-label="Main" className="flex flex-1 flex-wrap gap-4 text-sm font-medium">

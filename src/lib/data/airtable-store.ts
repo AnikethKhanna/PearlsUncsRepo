@@ -113,6 +113,11 @@ export class AirtableStore implements DataStore {
     return r ? toTask(r) : null;
   }
 
+  /** Every task in the base, including any not linked to a project. Used by the Firestore migration. */
+  async listAllTasks(): Promise<Task[]> {
+    return (await this.at.list(S.tasks.table)).map(toTask);
+  }
+
   async getTasksByIds(ids: string[]): Promise<Task[]> {
     if (ids.length === 0) return [];
     return (await this.at.findMany(S.tasks.table, ids)).map(toTask);

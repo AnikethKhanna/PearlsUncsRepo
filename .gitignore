@@ -40,3 +40,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# firebase (never commit service-account keys)
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.firebase/
+*-firebase-adminsdk-*.json
+service-account*.json
+
+# Airtable → Firestore migration output (contains names and emails)
+/migration-output/

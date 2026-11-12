@@ -5,9 +5,9 @@ import { getSessionSecret, isProductionDeployment } from "@/lib/config";
 import { getStore } from "@/lib/data";
 import type { User } from "@/lib/domain/types";
 import { can, type Permission } from "./permissions";
-import { createSessionToken, verifySessionToken } from "./session-token";
+import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "./session-token";
 
-export const SESSION_COOKIE = "nmu_session";
+export { SESSION_COOKIE };
 const SESSION_TTL_SECONDS = 60 * 60 * 12; // 12 hours
 const USER_CACHE_MS = 60_000; // re-check role/active status at least once a minute
 
