@@ -39,6 +39,8 @@ With no settings table or inaccessible storage, task screens retain the original
 
 Memory-mode demo settings use the same DataStore interface and reset when the server restarts. Production settings persist through Airtable.
 
+When pulling this feature with `npm run dev` already running, an old cached data store may lack `getWorkflowConfig`. The store factory now replaces incompatible cached instances automatically. This resets temporary memory-mode demo data once; Airtable records are untouched. Restarting the dev server also clears an old cached instance.
+
 ## Compatibility and acceptance
 
 - Authentication is unchanged: this branch had direct Google OAuth and development email-only sign-in, **not an email/password authentication backend**. No Firebase, mandatory MFA or password changes were introduced.
