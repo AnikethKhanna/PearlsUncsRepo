@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AuthorizationError, getCurrentUser, requirePermission } from "@/lib/auth/current-user";
 import { canUpdateTask } from "@/lib/auth/permissions";
+import { queueCalendarSync } from "@/lib/calendar-sync";
 import { getStore } from "@/lib/data";
 import { isIsoDate } from "@/lib/domain/dates";
 import { generateTaskDrafts, rolesForSteps } from "@/lib/domain/generate-tasks";
@@ -81,6 +82,7 @@ export async function createProject(_prev: CreateProjectState, formData: FormDat
       drafts,
     );
     projectId = project.id;
+    queueCalendarSync(drafts.flatMap((d) => d.assigneeIds));
   } catch (err) {
     if (err instanceof AuthorizationError) return { error: err.message };
     console.error("createProject failed:", err instanceof Error ? err.message : "unknown error");
@@ -114,6 +116,7 @@ export async function updateTaskStatus(_prev: TaskUpdateState, formData: FormDat
     if (!task || !project || !canUpdateTask(user, project, task)) return { error: "You don't have permission to update this task." };
 
     await store.updateTask(task.id, { status });
+    queueCalendarSync(task.assigneeIds); // done tasks leave the calendar; reopened ones come back
     revalidatePath(`/projects/${project.id}`);
     revalidatePath("/projects");
     revalidatePath("/my-tasks");

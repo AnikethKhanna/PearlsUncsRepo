@@ -30,6 +30,14 @@ Airtable as the data store, hosted on Vercel.
   today, upcoming and completed tasks each have a colour, a symbol and a text
   label. Clicking a task opens its task page. Tasks with no due date are
   listed under **No due date**.
+- **Google Calendar sync (optional):** staff connect their own Google
+  Calendar under **Google Calendar**. Their assigned task deadlines appear as
+  events with reminders (default 2 days before), kept up to date as tasks
+  change, plus one combined overdue reminder (weekly by default). Needs Google
+  Cloud, Airtable and Vercel setup: see
+  [docs/google-calendar.md](docs/google-calendar.md), which also has the
+  **handoff checklist** for moving the Google Cloud project, secrets and
+  hosting to NMU-owned accounts, and a troubleshooting table.
 - **All Projects**.
 - **Flexible programs:** admins can add, edit, remove and reorder tasks in one
   program without changing its template or other programs. **Save as

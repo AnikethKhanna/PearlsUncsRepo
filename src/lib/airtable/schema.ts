@@ -131,6 +131,40 @@ export const AIRTABLE_SCHEMA = {
       completedAt: "Completed At",
     },
   },
+  /**
+   * OPTIONAL until Google Calendar sync is used: one row per person who connected
+   * their Google Calendar. The refresh token is ENCRYPTED by the app
+   * (TOKEN_ENCRYPTION_KEY); still, limit who can open this table in Airtable.
+   */
+  calendarConnections: {
+    table: "Calendar Connections",
+    fields: {
+      /** Primary field. Single line text: the Users record ID (recXXXX) */
+      userId: "User ID",
+      /** Link to Users (for people reading the table) */
+      user: "User",
+      googleEmail: "Google Account",
+      /** Long text: encrypted, never readable without the server's key */
+      refreshToken: "Refresh Token (encrypted)",
+      calendarId: "Calendar ID",
+      calendarName: "Calendar Name",
+      calendarTimeZone: "Calendar Time Zone",
+      /** Checkbox */
+      syncEnabled: "Sync Enabled",
+      /** Single line text, e.g. "2" or "1,7" (days before the due date) */
+      reminderDays: "Reminder Days",
+      /** Single line text, "HH:MM" */
+      reminderTime: "Reminder Time",
+      /** Single select: off | daily | weekly */
+      overdueReminders: "Overdue Reminders",
+      /** Single select: connected | needs_reconnect | error */
+      status: "Status",
+      /** Single line text: ISO timestamp */
+      lastSyncedAt: "Last Synced At",
+      /** Long text */
+      lastError: "Last Error",
+    },
+  },
 } as const;
 
 export type SchemaKey = keyof typeof AIRTABLE_SCHEMA;

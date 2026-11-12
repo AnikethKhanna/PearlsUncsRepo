@@ -135,6 +135,8 @@ function evalFormula(formula: string, r: AirtableRecord): boolean {
   if (m) return [...m[1].matchAll(/RECORD_ID\(\)='(rec\w+)'/g)].some((x) => x[1] === r.id);
   m = /^LOWER\(TRIM\(\{(.+)\}\)\)="(.*)"$/.exec(formula);
   if (m) return String(r.fields[m[1]] ?? "").trim().toLowerCase() === m[2];
+  m = /^\{(.+)\}="(.*)"$/.exec(formula);
+  if (m) return String(r.fields[m[1]] ?? "") === m[2];
   m = /^\{(.+)\}$/.exec(formula);
   if (m) return !!r.fields[m[1]];
   throw new Error(`FakeAirtable cannot evaluate formula: ${formula}`);

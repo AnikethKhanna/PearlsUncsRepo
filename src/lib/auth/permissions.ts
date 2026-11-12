@@ -16,6 +16,7 @@ export const PERMISSIONS = [
   "task.updateAny", // change status on any task in a project you can see
   "program.editTasks", // add, edit, remove and reorder tasks in ONE program (never changes its template)
   "template.manage", // view templates and "Save as Template" from a program
+  "calendar.sync", // connect your OWN Google Calendar and sync YOUR assigned task deadlines to it
   "admin.manage", // users, sites, settings
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -24,7 +25,7 @@ export const ROLE_PERMISSIONS: Record<AccessLevel, readonly Permission[]> = {
   // Admins see and change everything.
   Admin: PERMISSIONS,
   // Staff see and update only the tasks assigned to them.
-  Staff: ["task.updateOwn"],
+  Staff: ["task.updateOwn", "calendar.sync"],
   // External partner access is pending sponsor confirmation: no access for now.
   Partner: [],
 };

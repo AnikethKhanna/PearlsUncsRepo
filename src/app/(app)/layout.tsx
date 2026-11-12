@@ -27,6 +27,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/calendar" className="text-slate-700 hover:text-brand-700">
               Calendar
             </Link>
+            {can(user, "calendar.sync") && (
+              <Link href="/settings/calendar" className="text-slate-700 hover:text-brand-700">
+                Google Calendar
+              </Link>
+            )}
             <Link href="/projects" className="text-slate-700 hover:text-brand-700">
               All Projects
             </Link>

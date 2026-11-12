@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AuthorizationError, requirePermission } from "@/lib/auth/current-user";
 import { canViewProject } from "@/lib/auth/permissions";
+import { queueCalendarSync } from "@/lib/calendar-sync";
 import { getStore } from "@/lib/data";
 import { isIsoDate } from "@/lib/domain/dates";
 import { moveTask, nextOrder, wouldCreateCycle } from "@/lib/domain/program-edit";
@@ -88,6 +89,8 @@ export async function saveTask(_prev: TaskFormState, formData: FormData): Promis
           order: nextOrder(tasks.filter((t) => t.phase === phase)),
         });
     savedId = saved.id;
+    // Both old and new assignees: someone taken off a task loses its event.
+    queueCalendarSync([...(existing?.assigneeIds ?? []), ...saved.assigneeIds]);
   } catch (err) {
     if (err instanceof AuthorizationError) return { error: err.message };
     console.error("saveTask failed:", err instanceof Error ? err.message : "unknown error");
@@ -103,6 +106,7 @@ export async function removeTask(formData: FormData): Promise<void> {
   const { tasks } = await loadEditableProgram(projectId);
   if (!tasks.some((t) => t.id === taskId)) throw new AuthorizationError("That task is no longer in this program.");
   await getStore().deleteTask(taskId);
+  queueCalendarSync(tasks.find((t) => t.id === taskId)!.assigneeIds);
   revalidateProgram(projectId);
   redirect(`/projects/${projectId}?removed=1`);
 }

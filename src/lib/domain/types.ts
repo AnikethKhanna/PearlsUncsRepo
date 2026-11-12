@@ -171,3 +171,35 @@ export interface StepDraft {
   defaultAssigneeIds: string[];
   dependsOnKeys: string[];
 }
+
+// ---- Google Calendar sync (one optional connection per user) ----
+
+export const OVERDUE_REMINDER_MODES = ["off", "daily", "weekly"] as const;
+export type OverdueReminderMode = (typeof OVERDUE_REMINDER_MODES)[number];
+
+export const CALENDAR_CONNECTION_STATUSES = ["connected", "needs_reconnect", "error"] as const;
+export type CalendarConnectionStatus = (typeof CALENDAR_CONNECTION_STATUSES)[number];
+
+export interface CalendarConnection {
+  userId: string;
+  /** Google account the calendar belongs to (shown to the user) */
+  googleEmail: string;
+  /** Refresh token, AES-256-GCM encrypted with TOKEN_ENCRYPTION_KEY. Never sent to the browser. */
+  encryptedRefreshToken: string;
+  /** Google calendar ID; "primary" is the user's main calendar */
+  calendarId: string;
+  calendarName: string;
+  /** IANA time zone of the chosen calendar, used for the timed overdue reminder */
+  calendarTimeZone: string;
+  syncEnabled: boolean;
+  /** Pop-up reminders for each deadline, in whole days before the due date (1–7) */
+  reminderDays: number[];
+  /** Time of day for those reminders, "HH:MM" in the calendar's time zone */
+  reminderTime: string;
+  overdueReminders: OverdueReminderMode;
+  status: CalendarConnectionStatus;
+  /** ISO timestamp of the last successful sync */
+  lastSyncedAt: string | null;
+  /** Plain-language problem from the last sync (never contains tokens) */
+  lastError: string | null;
+}

@@ -56,13 +56,15 @@ for (const t of tables) {
 // ---- Compare with the app's mapping ----
 // Fields the app works without (features that need them say so).
 const OPTIONAL = new Set(["steps.defaultAssignees"]);
+const OPTIONAL_TABLES = new Set(["calendarConnections"]);
 
 const problems = [];
 const warnings = [];
 for (const [key, spec] of Object.entries(AIRTABLE_SCHEMA)) {
   const table = byName.get(spec.table);
   if (!table) {
-    problems.push(`Missing table "${spec.table}" (schema.ts → ${key}.table)`);
+    if (OPTIONAL_TABLES.has(key)) warnings.push(`Missing table "${spec.table}" (schema.ts → ${key}.table): optional, needed only for Google Calendar sync (docs/google-calendar.md)`);
+    else problems.push(`Missing table "${spec.table}" (schema.ts → ${key}.table)`);
     continue;
   }
   const fields = new Map(table.fields.flatMap((f) => [[f.name, f], [f.id, f]]));

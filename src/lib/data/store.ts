@@ -1,4 +1,5 @@
 import type {
+  CalendarConnection,
   NewProjectInput,
   NewTaskInput,
   NewTemplateInput,
@@ -66,4 +67,20 @@ export interface DataStore {
 
   /** Create a NEW template with its steps, then wire step dependencies. */
   createTemplate(input: NewTemplateInput, steps: StepDraft[]): Promise<ProgramTemplate>;
+
+  // ---- Google Calendar connections (one per user; tokens are stored encrypted) ----
+
+  getCalendarConnection(userId: string): Promise<CalendarConnection | null>;
+  listCalendarConnections(): Promise<CalendarConnection[]>;
+  /** Create or replace the user's connection. */
+  saveCalendarConnection(connection: CalendarConnection): Promise<void>;
+  deleteCalendarConnection(userId: string): Promise<void>;
+}
+
+/** The storage for a feature hasn't been set up yet (e.g. a missing Airtable table). */
+export class StorageNotReadyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StorageNotReadyError";
+  }
 }

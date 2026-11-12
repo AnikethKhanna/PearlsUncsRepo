@@ -9,6 +9,7 @@
 import { addDays, dayOfWeek, today } from "@/lib/domain/dates";
 import { generateTaskDrafts, rolesForSteps } from "@/lib/domain/generate-tasks";
 import type {
+  CalendarConnection,
   NewProjectInput,
   NewTaskInput,
   NewTemplateInput,
@@ -32,6 +33,7 @@ interface State {
   templates: ProgramTemplate[];
   projects: Project[];
   tasks: Task[];
+  calendarConnections: CalendarConnection[];
   seq: number;
 }
 
@@ -42,6 +44,7 @@ function freshState(): State {
     templates: SAMPLE_TEMPLATES,
     projects: [],
     tasks: [],
+    calendarConnections: [],
     seq: 1,
   });
 }
@@ -252,6 +255,24 @@ export class MemoryStore implements DataStore {
     };
     this.s.templates.push(template);
     return structuredClone(template);
+  }
+
+  // ---- Google Calendar connections ----
+
+  async getCalendarConnection(userId: string) {
+    return structuredClone(this.s.calendarConnections.find((c) => c.userId === userId) ?? null);
+  }
+  async listCalendarConnections() {
+    return structuredClone(this.s.calendarConnections);
+  }
+  async saveCalendarConnection(connection: CalendarConnection) {
+    this.s.calendarConnections = [
+      ...this.s.calendarConnections.filter((c) => c.userId !== connection.userId),
+      structuredClone(connection),
+    ];
+  }
+  async deleteCalendarConnection(userId: string) {
+    this.s.calendarConnections = this.s.calendarConnections.filter((c) => c.userId !== userId);
   }
 }
 

@@ -1,8 +1,13 @@
-import { AirtableClient, formulaString, type AirtableRecord } from "@/lib/airtable/client";
+import { AirtableClient, AirtableError, formulaString, type AirtableRecord } from "@/lib/airtable/client";
 import { AIRTABLE_SCHEMA as S } from "@/lib/airtable/schema";
 import { today } from "@/lib/domain/dates";
 import {
   ACCESS_LEVELS,
+  CALENDAR_CONNECTION_STATUSES,
+  OVERDUE_REMINDER_MODES,
+  type CalendarConnection,
+  type CalendarConnectionStatus,
+  type OverdueReminderMode,
   OFFSET_UNITS,
   PROJECT_STATUSES,
   TASK_STATUSES,
@@ -22,7 +27,7 @@ import {
   type TemplateStep,
   type User,
 } from "@/lib/domain/types";
-import type { DataStore } from "./store";
+import { StorageNotReadyError, type DataStore } from "./store";
 
 /** Airtable-backed implementation of DataStore. Field names come from schema.ts. */
 export class AirtableStore implements DataStore {
@@ -275,6 +280,68 @@ export class AirtableStore implements DataStore {
     const [r] = await this.at.update(S.tasks.table, [{ id, fields }]);
     return toTask(r);
   }
+
+  // ---------- Google Calendar connections ----------
+
+  async getCalendarConnection(userId: string): Promise<CalendarConnection | null> {
+    const r = await this.findConnectionRecord(userId);
+    return r ? toConnection(r) : null;
+  }
+
+  async listCalendarConnections(): Promise<CalendarConnection[]> {
+    return (await this.connections(() => this.at.list(S.calendarConnections.table))).map(toConnection);
+  }
+
+  async saveCalendarConnection(c: CalendarConnection): Promise<void> {
+    const f = S.calendarConnections.fields;
+    const fields = {
+      [f.userId]: c.userId,
+      ...(/^rec[A-Za-z0-9]+$/.test(c.userId) ? { [f.user]: [c.userId] } : {}),
+      [f.googleEmail]: c.googleEmail,
+      [f.refreshToken]: c.encryptedRefreshToken,
+      [f.calendarId]: c.calendarId,
+      [f.calendarName]: c.calendarName,
+      [f.calendarTimeZone]: c.calendarTimeZone,
+      [f.syncEnabled]: c.syncEnabled,
+      [f.reminderDays]: c.reminderDays.join(","),
+      [f.reminderTime]: c.reminderTime,
+      [f.overdueReminders]: c.overdueReminders,
+      [f.status]: c.status,
+      [f.lastSyncedAt]: c.lastSyncedAt ?? "",
+      [f.lastError]: c.lastError ?? "",
+    };
+    const existing = await this.findConnectionRecord(c.userId);
+    if (existing) await this.at.update(S.calendarConnections.table, [{ id: existing.id, fields }]);
+    else await this.at.create(S.calendarConnections.table, [fields]);
+  }
+
+  async deleteCalendarConnection(userId: string): Promise<void> {
+    const existing = await this.findConnectionRecord(userId);
+    if (existing) await this.at.destroy(S.calendarConnections.table, [existing.id]);
+  }
+
+  private async findConnectionRecord(userId: string): Promise<AirtableRecord | null> {
+    const records = await this.connections(() =>
+      this.at.list(S.calendarConnections.table, {
+        filterByFormula: `{${S.calendarConnections.fields.userId}}=${formulaString(userId)}`,
+        maxRecords: 1,
+      }),
+    );
+    return records[0] ?? null;
+  }
+
+  /** Turn "table not found" into a clear setup message instead of a generic failure. */
+  private async connections<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof AirtableError && (err.status === 404 || err.status === 403))
+        throw new StorageNotReadyError(
+          `The Airtable table "${S.calendarConnections.table}" is missing or not accessible. See docs/google-calendar.md.`,
+        );
+      throw err;
+    }
+  }
 }
 
 /** Airtable fields for the editable parts of a task. Empty values clear the field. */
@@ -428,5 +495,27 @@ function toTask(r: AirtableRecord): Task {
       .split(/\s+/)
       .filter((u) => /^https:\/\//.test(u)),
     completedAt: date(r, f.completedAt),
+  };
+}
+
+function toConnection(r: AirtableRecord): CalendarConnection {
+  const f = S.calendarConnections.fields;
+  return {
+    userId: str(r, f.userId),
+    googleEmail: str(r, f.googleEmail),
+    encryptedRefreshToken: str(r, f.refreshToken),
+    calendarId: str(r, f.calendarId) || "primary",
+    calendarName: str(r, f.calendarName),
+    calendarTimeZone: str(r, f.calendarTimeZone) || "America/Los_Angeles",
+    syncEnabled: bool(r, f.syncEnabled),
+    reminderDays: str(r, f.reminderDays)
+      .split(",")
+      .map((x) => Number(x.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0),
+    reminderTime: str(r, f.reminderTime) || "09:00",
+    overdueReminders: oneOf<OverdueReminderMode>(str(r, f.overdueReminders), OVERDUE_REMINDER_MODES, "weekly"),
+    status: oneOf<CalendarConnectionStatus>(str(r, f.status), CALENDAR_CONNECTION_STATUSES, "error"),
+    lastSyncedAt: str(r, f.lastSyncedAt) || null,
+    lastError: str(r, f.lastError) || null,
   };
 }

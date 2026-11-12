@@ -88,3 +88,30 @@ export function getGoogleOAuthConfig():
 export function getAppUrl(): string | undefined {
   return read("APP_URL");
 }
+
+/**
+ * 32-byte key (base64) that encrypts Google refresh tokens before they are
+ * stored in Airtable. Generate with: openssl rand -base64 32
+ */
+export function getTokenEncryptionKey(): Buffer | null {
+  const raw = read("TOKEN_ENCRYPTION_KEY");
+  if (!raw) return null;
+  const key = Buffer.from(raw, "base64");
+  if (key.length !== 32) throw new Error("TOKEN_ENCRYPTION_KEY must be 32 bytes, base64-encoded (openssl rand -base64 32).");
+  return key;
+}
+
+/** Why Google Calendar sync can't be used yet, in plain words, or null if it can. */
+export function calendarSyncBlocker(): string | null {
+  const missing: string[] = [];
+  if (!read("GOOGLE_CLIENT_ID")) missing.push("GOOGLE_CLIENT_ID");
+  if (!read("GOOGLE_CLIENT_SECRET")) missing.push("GOOGLE_CLIENT_SECRET");
+  if (!read("TOKEN_ENCRYPTION_KEY")) missing.push("TOKEN_ENCRYPTION_KEY");
+  return missing.length ? `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not set` : null;
+}
+
+/** Shared secret Vercel Cron sends as "Authorization: Bearer <CRON_SECRET>". */
+export function getCronSecret(): string | undefined {
+  const secret = read("CRON_SECRET");
+  return secret && secret.length >= 16 ? secret : undefined;
+}

@@ -162,3 +162,9 @@ program days skip weekends, this needs adjusting.
   `Users.Assigned Tasks` and fetches those records by ID.
 - **Activity history** (Phase 4) will be a separate `Activity` table:
   who, what, when, old value, new value, linked to the task and project.
+
+### Calendar Connections (optional, for Google Calendar sync)
+
+One row per person who connected Google Calendar. The fields are listed in
+[google-calendar.md](google-calendar.md#2-airtable-add-the-calendar-connections-table).
+Refresh tokens are stored encrypted by the app.

@@ -130,7 +130,15 @@ My Tasks and a `/calendar` page (month and week views). It reads the same task
 data as My Tasks; nothing is copied or stored. Both pages load tasks through
 `src/lib/data/task-scope.ts`, so they apply the same permission rules. Placement
 logic is in `src/lib/domain/calendar.ts`. Dates are calendar dates (no time of
-day), and "today" is Pacific time. Google Calendar sync is not built yet.
+day), and "today" is Pacific time.
+
+**Sponsor feedback (Nov 2026):** ✅ Google Calendar sync and deadline reminders
+instead of email (see [google-calendar.md](google-calendar.md)). It uses
+incremental Google OAuth with narrow scopes, stores encrypted refresh tokens in
+a new Airtable table, gives each task a fixed event ID so there are no
+duplicates, syncs after task changes via `after()`, and runs daily via Vercel
+Cron (`vercel.json`). The code is in `src/lib/google/`, `src/lib/calendar-sync/`
+and `src/lib/domain/calendar-sync.ts`.
 
 **After the demo (Phase 4–5):** task detail page with notes and Drive links,
 add/reassign tasks, activity history table, "program date changed → review
