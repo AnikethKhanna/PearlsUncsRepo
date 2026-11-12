@@ -24,6 +24,12 @@ Airtable as the data store, hosted on Vercel.
   You can search, filter by program, status, due date and assignee (admins),
   and sort. Active filters show as removable chips, with **Reset filters**.
   Admins can switch to **Everyone's tasks**; Staff only ever see their own.
+- **Calendar:** a "Next 7 days" strip on My Tasks and a full **Calendar**
+  page with month and week views. Shows task due dates and program start/end
+  dates, using the same filters and permissions as My Tasks. Overdue, due
+  today, upcoming and completed tasks each have a colour, a symbol and a text
+  label. Clicking a task opens its task page. Tasks with no due date are
+  listed under **No due date**.
 - **All Projects**.
 - **Flexible programs:** admins can add, edit, remove and reorder tasks in one
   program without changing its template or other programs. **Save as

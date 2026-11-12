@@ -209,10 +209,12 @@ export interface FilterChip {
 export function activeFilterChips(
   f: DashboardFilters,
   names: { project: (id: string) => string; user: (id: string) => string },
+  /** Link for a filter state; defaults to My Tasks (the calendar passes its own so view/date are kept) */
+  hrefFor: (filters: DashboardFilters) => string = (filters) => `/my-tasks${filtersToQuery(filters)}`,
 ): FilterChip[] {
   const chips: FilterChip[] = [];
   const add = (key: keyof DashboardFilters, label: string) =>
-    chips.push({ key, label, removeHref: `/my-tasks${filtersToQuery(f, { [key]: DEFAULT_FILTERS[key] })}` });
+    chips.push({ key, label, removeHref: hrefFor({ ...f, [key]: DEFAULT_FILTERS[key] }) });
   if (f.project !== "all") add("project", `Project: ${names.project(f.project)}`);
   if (f.status !== "all") add("status", `Status: ${LABELS.status[f.status]}`);
   if (f.due !== "any") add("due", `Due: ${LABELS.due[f.due]}`);

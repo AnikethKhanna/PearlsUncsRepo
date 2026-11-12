@@ -24,6 +24,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/my-tasks" className="text-slate-700 hover:text-brand-700">
               My Tasks
             </Link>
+            <Link href="/calendar" className="text-slate-700 hover:text-brand-700">
+              Calendar
+            </Link>
             <Link href="/projects" className="text-slate-700 hover:text-brand-700">
               All Projects
             </Link>

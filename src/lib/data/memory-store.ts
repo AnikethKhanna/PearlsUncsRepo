@@ -6,7 +6,7 @@
  * when the server restarts. The app shows a warning banner while it is in use,
  * and src/lib/config.ts refuses it in production deployments.
  */
-import { addDays, today } from "@/lib/domain/dates";
+import { addDays, dayOfWeek, today } from "@/lib/domain/dates";
 import { generateTaskDrafts, rolesForSteps } from "@/lib/domain/generate-tasks";
 import type {
   NewProjectInput,
@@ -155,6 +155,12 @@ export class MemoryStore implements DataStore {
     t.completedAt = status === "Done" ? (t.dueDate && t.dueDate < today() ? t.dueDate : today()) : null;
   }
 
+  /** Seeding helper: move a sample task's due date (demo data only). */
+  seedTaskDueDate(id: string, dueDate: string) {
+    const t = this.s.tasks.find((x) => x.id === id);
+    if (t) t.dueDate = dueDate;
+  }
+
   seedProjectStatus(id: string, status: ProjectStatus) {
     const p = this.s.projects.find((x) => x.id === id);
     if (p) p.status = status;
@@ -298,11 +304,22 @@ function seedSampleProjects(store: MemoryStore) {
       },
       drafts,
     );
-    return { project, tasks: store.tasksOf(project.id) };
+    const tasks = store.tasksOf(project.id);
+    // DEMO ONLY: most template steps are "N weeks before program start", so their generated
+    // dates all share the start date's weekday, which looks odd on the calendar. Spread the
+    // pre-program tasks over Monday–Friday by moving each one 0–6 days EARLIER (never later,
+    // so nothing slips past the program start). Program-week tasks keep their exact dates.
+    // Real programs use the template's dates as generated.
+    tasks.forEach((t, i) => {
+      if (!t.dueDate || t.dueDate >= startDate) return;
+      const weekday = 1 + (i % 5); // Mon..Fri
+      store.seedTaskDueDate(t.id, addDays(t.dueDate, -((dayOfWeek(t.dueDate) - weekday + 7) % 7)));
+    });
+    return { project, tasks };
   };
 
-  // 1. In-flight collegiate program (from the spreadsheet), 5 weeks out.
-  const start1 = addDays(t0, 35);
+  // 1. In-flight collegiate program (from the spreadsheet), about 5 weeks out.
+  const start1 = addDays(t0, 33);
   const p1 = make(
     "Fall Swim Safely – Sample University (sample)",
     "tplCollegiate",
@@ -319,8 +336,8 @@ function seedSampleProjects(store: MemoryStore) {
   });
   store.seedProjectStatus(p1.project.id, "Active");
 
-  // 2. Illustrative YMCA program, 3 weeks out: shows a blocked task.
-  const start2 = addDays(t0, 21);
+  // 2. Illustrative YMCA program, about 3 weeks out (a different weekday from program 1): shows a blocked task.
+  const start2 = addDays(t0, 22);
   const p2 = make("Learn to Swim – Sample YMCA (sample)", "tplYmca", "siteY", start2, addDays(start2, 35));
   for (const t of p2.tasks) if (t.title === "Sign MOU with YMCA branch") store.seedTaskStatus(t.id, "Done");
   store.seedProjectStatus(p2.project.id, "Active");

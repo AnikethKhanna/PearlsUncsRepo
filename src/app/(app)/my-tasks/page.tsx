@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { CalendarPreviewCard } from "@/components/calendar";
+import { Badge, Card, PageHeader, buttonSecondary } from "@/components/ui";
 import { TaskStatusForm } from "@/components/task-status-form";
 import { requireUser } from "@/lib/auth/current-user";
-import { ACCESS_SUMMARY, can, canUpdateTask, canViewProject, canViewTask } from "@/lib/auth/permissions";
+import { ACCESS_SUMMARY, can, canUpdateTask } from "@/lib/auth/permissions";
 import { getStore } from "@/lib/data";
+import { loadTasksInScope } from "@/lib/data/task-scope";
+import { buildPreview, calendarHref, milestoneProjects, projectMilestones } from "@/lib/domain/calendar";
 import { formatDisplayDate, today } from "@/lib/domain/dates";
 import {
   DUE_FILTERS,
@@ -42,34 +45,26 @@ export default async function MyTasksPage({ searchParams }: PageProps<"/my-tasks
   const canSeeEveryone = can(user, "task.viewAll");
   const f = parseFilters(await searchParams, { canSeeEveryone });
 
-  // ---- Load only what this person may see (same store + permission checks as everywhere else) ----
-  const projects = (await store.listProjects()).filter(
-    (p) => canViewProject(user, p) && p.status !== "Completed" && p.status !== "Cancelled",
+  // ---- Load only what this person may see (same permission checks as the calendar and task pages) ----
+  const { projects, projectById, tasks, byId, users, userName, rows: allRows } = await loadTasksInScope(
+    store,
+    user,
+    f.scope,
   );
-  const projectById = new Map(projects.map((p) => [p.id, p]));
-  const taskIds = f.scope === "all" ? projects.flatMap((p) => p.taskIds) : user.assignedTaskIds;
-  const tasks = (await store.getTasksByIds(taskIds)).filter((t) => {
-    const project = t.projectId ? projectById.get(t.projectId) : undefined;
-    if (!project || !canViewTask(user, project, t)) return false;
-    return f.scope === "all" || t.assigneeIds.includes(user.id);
-  });
-  const [prereqs, users] = await Promise.all([
-    store.getTasksByIds(tasks.flatMap((t) => t.dependsOnTaskIds).filter((id) => !tasks.some((t) => t.id === id))),
-    store.listUsers(),
-  ]);
-  const byId = new Map([...tasks, ...prereqs].map((t) => [t.id, t]));
-  const userName = new Map(users.map((u) => [u.id, u.name]));
 
   const now = today();
-  const allRows: DashboardRow[] = tasks.map((t) => ({
-    task: t,
-    projectName: projectById.get(t.projectId!)!.name,
-    blocked: !isComplete(t) && openPrerequisites(t, byId).length > 0,
-    assigneeNames: t.assigneeIds.map((id) => userName.get(id) ?? "Unknown"),
-  }));
   const summary = summarize(allRows, now);
-  const shown = sortRows(applyFilters(allRows, f, now), f.sort);
+  const filtered = applyFilters(allRows, f, now);
+  const shown = sortRows(filtered, f.sort);
   const sections = buildSections(shown, now);
+
+  // Compact calendar preview: the same filtered tasks, laid out over the next 7 days.
+  const cal = { view: "month" as const, date: now };
+  const preview = buildPreview(
+    filtered,
+    projectMilestones(milestoneProjects(projects, f, { userId: user.id, tasksInScope: tasks })),
+    now,
+  );
 
   const projectsInScope = projects.filter((p) => tasks.some((t) => t.projectId === p.id));
   const chips = activeFilterChips(f, {
@@ -85,6 +80,11 @@ export default async function MyTasksPage({ searchParams }: PageProps<"/my-tasks
       <PageHeader
         title={f.scope === "all" ? "Everyone's tasks" : "My Tasks"}
         description={`Signed in as ${user.name} (${user.accessLevel}): ${ACCESS_SUMMARY[user.accessLevel]}`}
+        actions={
+          <Link href={calendarHref(f, cal, now)} className={buttonSecondary}>
+            Calendar view
+          </Link>
+        }
       />
 
       {canSeeEveryone && (
@@ -130,6 +130,13 @@ export default async function MyTasksPage({ searchParams }: PageProps<"/my-tasks
           tone="amber"
         />
       </div>
+
+      <CalendarPreviewCard
+        preview={preview}
+        calendarHref={calendarHref(f, cal, now)}
+        weekHref={(date) => calendarHref(f, cal, now, { view: "week", date })}
+        overdueHref={`/my-tasks${filtersToQuery(f, { due: "overdue" })}`}
+      />
 
       <Card className="mb-5 p-4">
         <FilterBar

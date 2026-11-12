@@ -125,6 +125,13 @@ editing of template steps is still to do; edit them in Airtable for now.
 collapsible urgency sections, filters and sorting kept in the URL (bookmarkable),
 an admin "Everyone's tasks" view. The logic is in `src/lib/domain/task-dashboard.ts`.
 
+**Sponsor feedback (Nov 2026):** ✅ in-app calendar: a "Next 7 days" preview on
+My Tasks and a `/calendar` page (month and week views). It reads the same task
+data as My Tasks; nothing is copied or stored. Both pages load tasks through
+`src/lib/data/task-scope.ts`, so they apply the same permission rules. Placement
+logic is in `src/lib/domain/calendar.ts`. Dates are calendar dates (no time of
+day), and "today" is Pacific time. Google Calendar sync is not built yet.
+
 **After the demo (Phase 4–5):** task detail page with notes and Drive links,
 add/reassign tasks, activity history table, "program date changed → review
 proposed new deadlines" screen (shows old vs. new date per task and nothing

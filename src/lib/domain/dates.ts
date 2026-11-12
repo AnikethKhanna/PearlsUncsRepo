@@ -89,3 +89,35 @@ export function formatDisplayDate(value: string | null): string {
   const d = parse(value);
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(d);
 }
+
+// ---- Calendar helpers (all UTC-based, so a date never shifts with the server's or browser's time zone) ----
+
+/** Day of the week, 0 = Sunday … 6 = Saturday. */
+export function dayOfWeek(value: string): number {
+  return parse(value).getUTCDay();
+}
+
+/** The Sunday on or before this date (weeks start on Sunday, as in US calendars). */
+export function startOfWeek(value: string): string {
+  return addDays(value, -dayOfWeek(value));
+}
+
+export function startOfMonth(value: string): string {
+  return `${value.slice(0, 7)}-01`;
+}
+
+export function endOfMonth(value: string): string {
+  return addDays(addMonths(startOfMonth(value), 1), -1);
+}
+
+/** Every date from start to end, inclusive. */
+export function datesBetween(start: string, end: string): string[] {
+  const out: string[] = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
+/** Format with Intl options, always in UTC so the calendar date is preserved. */
+export function formatDate(value: string, options: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(parse(value));
+}

@@ -16,15 +16,19 @@ interface Option {
 
 interface Props {
   scope: string;
+  /** Page the form submits to (default My Tasks) */
+  action?: string;
+  /** Extra state to keep when filters change, e.g. the calendar's view and date */
+  hidden?: Record<string, string>;
   values: { project: string; status: string; due: string; assignee: string; q: string; sort: string };
-  options: { project: Option[]; status: Option[]; due: Option[]; assignee: Option[] | null; sort: Option[] };
+  options: { project: Option[]; status: Option[]; due: Option[]; assignee: Option[] | null; sort: Option[] | null };
 }
 
 /**
  * Filter + sort controls. A plain GET form (works without JavaScript via
  * "Apply"); with JavaScript, changing a dropdown applies it immediately.
  */
-export function FilterBar({ scope, values, options }: Props) {
+export function FilterBar({ scope, action = "/my-tasks", hidden = {}, values, options }: Props) {
   const ref = useRef<HTMLFormElement>(null);
   const submit = () => ref.current?.requestSubmit();
   const select = (name: keyof Props["values"], label: string, opts: Option[]) => (
@@ -49,11 +53,14 @@ export function FilterBar({ scope, values, options }: Props) {
     <form
       ref={ref}
       method="get"
-      action="/my-tasks"
+      action={action}
       aria-label="Filter and sort tasks"
       className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 lg:grid-cols-6"
     >
       {scope !== "mine" && <input type="hidden" name="scope" value={scope} />}
+      {Object.entries(hidden).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       <label className="col-span-2 text-sm md:col-span-3 lg:col-span-1">
         <span className="mb-1 block font-medium text-slate-800">Search</span>
         <input
@@ -68,7 +75,7 @@ export function FilterBar({ scope, values, options }: Props) {
       {select("status", "Status", options.status)}
       {select("due", "Due", options.due)}
       {options.assignee && select("assignee", "Assignee", options.assignee)}
-      {select("sort", "Sort by", options.sort)}
+      {options.sort && select("sort", "Sort by", options.sort)}
       <button type="submit" className={`${buttonSecondary} h-[38px]`}>
         Apply
       </button>
