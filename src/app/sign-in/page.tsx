@@ -3,9 +3,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Alert, Card, buttonPrimary } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { configProblems, devSignInBlocker, getGoogleOAuthConfig } from "@/lib/config";
+import { isDemoEmail } from "@/lib/auth/demo-accounts";
+import { configProblems, devSignInBlocker, getDemoPassword, getGoogleOAuthConfig } from "@/lib/config";
 import { getStore } from "@/lib/data";
+import { ACCESS_LEVELS } from "@/lib/domain/types";
+import { DemoSignInForm, type DemoAccount } from "./demo-sign-in-form";
 import { DevSignInForm, type SampleAccount } from "./dev-sign-in-form";
+
+const ACCESS_ORDER: readonly string[] = ACCESS_LEVELS;
 
 const SAMPLE_DESCRIPTIONS: Record<string, string> = {
   Admin: "Sees everything; can create projects",
@@ -29,6 +34,20 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   const googleEnabled = !!getGoogleOAuthConfig();
   const devBlocker = devSignInBlocker();
   const devEnabled = problems.length === 0 && devBlocker === null;
+
+  // Demo accounts (@example.com rows + shared DEMO_PASSWORD). Only these
+  // made-up accounts are listed; real users never appear on this public page.
+  let demoAccounts: DemoAccount[] = [];
+  if (problems.length === 0 && getDemoPassword()) {
+    try {
+      demoAccounts = (await getStore().listUsers())
+        .filter((u) => u.active && isDemoEmail(u.email))
+        .sort((a, b) => ACCESS_ORDER.indexOf(a.accessLevel) - ACCESS_ORDER.indexOf(b.accessLevel))
+        .map((u) => ({ email: u.email, name: u.name || u.email, accessLevel: u.accessLevel }));
+    } catch {
+      demoAccounts = []; // Airtable unreachable: still show Google sign-in.
+    }
+  }
 
   // One-click buttons, ONLY for the placeholder's made-up accounts. Real Airtable
   // users are never listed on this public page.
@@ -63,6 +82,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
             </a>
           )}
           {devEnabled && <DevSignInForm sampleAccounts={sampleAccounts} />}
+          {demoAccounts.length > 0 && <DemoSignInForm accounts={demoAccounts} />}
           {problems.length > 0 && (
             <Alert tone="error">
               <p className="font-semibold">The app isn&apos;t configured yet: {problems.join("; ")}.</p>

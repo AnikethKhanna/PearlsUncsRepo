@@ -7,6 +7,7 @@
  * independent of job title.
  */
 import type { AccessLevel, Project, Task, User } from "@/lib/domain/types";
+import { isDemoEmail } from "./demo-accounts";
 
 export const PERMISSIONS = [
   "project.create", // create projects (and generate their tasks)
@@ -39,11 +40,19 @@ export const ACCESS_SUMMARY: Record<AccessLevel, string> = {
   Partner: "No access yet (external partner access is pending the sponsor's decision).",
 };
 
-type Actor = Pick<User, "id" | "accessLevel" | "active" | "assignedTaskIds">;
+type Actor = Pick<User, "id" | "accessLevel" | "active" | "assignedTaskIds"> & { email?: string };
 type ProjectRef = Pick<Project, "teamUserIds" | "taskIds">;
 
+/**
+ * Demo accounts (shared password, see demo-accounts.ts) never get features that
+ * act on a Google account: nobody owns the Google account behind an @example.com email.
+ */
+const DEMO_DENIED: ReadonlySet<Permission> = new Set<Permission>(["calendar.sync", "task.export"]);
+
 export function can(user: Actor | null, permission: Permission): boolean {
-  return !!user && user.active && ROLE_PERMISSIONS[user.accessLevel].includes(permission);
+  if (!user || !user.active) return false;
+  if (DEMO_DENIED.has(permission) && isDemoEmail(user.email)) return false;
+  return ROLE_PERMISSIONS[user.accessLevel].includes(permission);
 }
 
 /** Admins see every project; Staff see projects where they have at least one task. */

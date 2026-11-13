@@ -1,4 +1,5 @@
 import "server-only";
+import { MIN_DEMO_PASSWORD_LENGTH } from "@/lib/auth/demo-accounts";
 
 /**
  * Server-side configuration. Secrets are read from environment variables
@@ -65,6 +66,16 @@ export function devSignInBlocker(): string | null {
 /** Email-only sign-in for local development and demos. Never allowed in production. */
 export function isDevSignInEnabled(): boolean {
   return devSignInBlocker() === null;
+}
+
+/**
+ * Shared password for the @example.com demo accounts, or null when demo
+ * sign-in is off. Unlike dev sign-in this works in production, because it
+ * needs the password. Too-short values are ignored: there is no lockout.
+ */
+export function getDemoPassword(): string | null {
+  const value = read("DEMO_PASSWORD");
+  return value && value.length >= MIN_DEMO_PASSWORD_LENGTH ? value : null;
 }
 
 /** Problems that stop the app from working at all, for a friendly message instead of a crash. */
