@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "airtable:inspect": "node --no-warnings --env-file-if-exists=.env.local scripts/inspect-airtable.mjs",
-    "sample:import": "node --no-warnings scripts/import-sample-template.mjs"
+    "sample:import": "node --no-warnings scripts/import-sample-template.mjs",
+    "airtable:setup": "node --no-warnings --env-file-if-exists=.env.local scripts/setup-airtable-tables.mjs"
   },
   "dependencies": {
     "next": "16.4.5",

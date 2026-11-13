@@ -20,7 +20,8 @@ export const AIRTABLE_SCHEMA = {
     table: "Users",
     fields: {
       name: "Name",
-      email: "Email",
+      /** NMU's existing primary field (single line text). Must match the person's Google account. */
+      email: "Email Address",
       /** Single select: Admin | Staff | Partner */
       accessLevel: "Access Level",
       /** Single line text / single select, e.g. "Program Manager". Pre-fills role assignments. */

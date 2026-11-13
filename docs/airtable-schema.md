@@ -25,6 +25,26 @@ review the real structure. Then do one of two things:
 - If something is missing, **add it in Airtable**. Additions only, nothing
   destructive. Get approval from NMU first.
 
+## Setting up a base (option A: app tables next to NMU's)
+
+NMU's real base uses a different model (Region → Site → Session → Work, with
+formula Status, Due Date and Assignee fields that the app can't write). The
+app's tables are therefore **added next to** NMU's tables, which stay
+untouched. The app reuses NMU's existing `Users` table, including its
+`Email Address` primary field.
+
+```bash
+npm run airtable:setup                     # preview
+npm run airtable:setup -- --apply --seed   # create tables + sample template/site
+npm run airtable:inspect                   # confirm everything matches
+```
+
+The token needs `schema.bases:write` in addition to the scopes above. The
+script only adds tables and fields, and it refuses to run on a base whose
+name doesn't contain "test" unless `--force` is passed (only once NMU
+approves). After setup, each person needs **Name**, **Access Level** and the
+**Active** checkbox set on their Users row to sign in.
+
 ## Proposed tables
 
 Link fields marked *(inverse)* are created automatically by Airtable when the
